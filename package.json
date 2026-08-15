@@ -1,0 +1,33 @@
+{
+  "name": "mobile-bookkeeping-h5",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "dexie": "^4.0.11",
+    "echarts": "6.1.0",
+    "jszip": "^3.10.1",
+    "pinia": "^3.0.3",
+    "vue": "^3.5.18",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2",
+    "@types/node": "^24.2.1",
+    "@vitejs/plugin-vue": "5.2.4",
+    "@vue/test-utils": "^2.4.6",
+    "fake-indexeddb": "^6.0.1",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8.3",
+    "vite": "6.4.3",
+    "vitest": "^3.2.4",
+    "vue-tsc": "^3.0.5"
+  }
+}

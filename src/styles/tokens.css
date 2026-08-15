@@ -1,0 +1,22 @@
+:root {
+  --paper: #fbf7f1;
+  --surface: #fffdfa;
+  --surface-soft: #fff7f2;
+  --ink: #312c2a;
+  --muted: #9a918c;
+  --grid-line: rgba(180, 154, 137, 0.1);
+  --income: #72ad66;
+  --expense: #f07b70;
+  --accent: #f4b66d;
+  --lavender: #a894cd;
+  --blue: #7ca9cc;
+  --border: #eee2d9;
+  --primary: #f07b70;
+  --primary-soft: #fff0ed;
+  --shadow: 87,57,39;
+  --radius-card: 22px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}

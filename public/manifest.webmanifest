@@ -1,0 +1,13 @@
+{
+  "name": "钱迹 · 本地记账",
+  "short_name": "钱迹",
+  "description": "数据只保存在手机本地的记账工具",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f1e9",
+  "theme_color": "#f4f1e9",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

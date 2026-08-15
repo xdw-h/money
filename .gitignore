@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+.superpowers/
+playwright-report/
+test-results/
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+output/playwright/*.png
+微信图片_*.png
