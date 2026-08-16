@@ -47,7 +47,7 @@ function validateData(manifest: BackupManifest, data: BackupData) {
 export async function importBackup(file: Blob, database: BookkeepingDatabase) {
   const zip = await JSZip.loadAsync(await blobBytes(file))
   const manifestEntry = zip.file('manifest.json'); const dataEntry = zip.file('records.json')
-  if (!manifestEntry || !dataEntry) throw new Error('不是有效的钱迹备份文件')
+  if (!manifestEntry || !dataEntry) throw new Error('不是有效的记账备份文件')
   const manifest = JSON.parse(await manifestEntry.async('string')) as BackupManifest
   if (manifest.version !== 1) throw new Error('备份版本不兼容')
   const data = JSON.parse(await dataEntry.async('string')) as BackupData

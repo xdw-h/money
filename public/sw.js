@@ -1,6 +1,6 @@
-const CACHE = 'money-shell-v3'
+const CACHE = 'money-shell-v4'
 const BASE = new URL('./', self.registration.scope).pathname
-const SHELL = [BASE, `${BASE}index.html`, `${BASE}manifest.webmanifest`, `${BASE}icon.svg`]
+const SHELL = [BASE, `${BASE}index.html`, `${BASE}manifest.webmanifest`, `${BASE}icon.svg?v=2`]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()))

@@ -17,7 +17,7 @@ async function downloadBackup() {
   busy.value = true; error.value = ''
   try {
     const blob = await exportBackup(db); const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `钱迹备份-${new Date().toISOString().slice(0, 10)}.zip`; link.click(); URL.revokeObjectURL(url)
+    link.href = url; link.download = `记账备份-${new Date().toISOString().slice(0, 10)}.zip`; link.click(); URL.revokeObjectURL(url)
     message.value = `备份已生成：${formatDateTime(new Date())}`
   } catch (reason) { error.value = reason instanceof Error ? reason.message : '导出失败' } finally { busy.value = false }
 }

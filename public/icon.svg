@@ -1,8 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#f4f1e9"/>
-  <path d="M116 138h280v236H116z" fill="#fffdf7" stroke="#202020" stroke-width="24" stroke-linejoin="round"/>
-  <path d="M172 208h168M172 270h110" stroke="#202020" stroke-width="22" stroke-linecap="round"/>
-  <circle cx="344" cy="322" r="72" fill="#679ce8" stroke="#202020" stroke-width="20"/>
-  <path d="M344 285v74M307 322h74" stroke="#fff" stroke-width="18" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="bg" x1="72" y1="48" x2="448" y2="472" gradientUnits="userSpaceOnUse"><stop stop-color="#f58a80"/><stop offset="1" stop-color="#de625d"/></linearGradient>
+    <filter id="shadow" x="80" y="72" width="368" height="390" filterUnits="userSpaceOnUse"><feDropShadow dx="0" dy="16" stdDeviation="14" flood-color="#853d39" flood-opacity=".24"/></filter>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <g filter="url(#shadow)">
+    <rect x="116" y="94" width="280" height="324" rx="42" fill="#fffaf7"/>
+    <rect x="116" y="94" width="46" height="324" rx="23" fill="#f6d6ce"/>
+    <circle cx="139" cy="158" r="8" fill="#de625d"/><circle cx="139" cy="216" r="8" fill="#de625d"/><circle cx="139" cy="274" r="8" fill="#de625d"/><circle cx="139" cy="332" r="8" fill="#de625d"/>
+    <path d="M211 170h136M211 348h136" stroke="#edc8bf" stroke-width="16" stroke-linecap="round"/>
+    <path d="M223 216h66m-33 0v96m-47-57h94m-76 57h58" fill="none" stroke="#de625d" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
 </svg>
-
