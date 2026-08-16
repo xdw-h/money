@@ -11,6 +11,7 @@ describe('app shell', () => {
         { path: '/', component: { template: '<div>首页内容</div>' } },
         { path: '/bills', component: { template: '<div>账单内容</div>' } },
         { path: '/record/new', component: { template: '<div>新增内容</div>' } },
+        { path: '/timeline', component: { template: '<div>时间轴内容</div>' } },
         { path: '/settings', component: { template: '<div>设置内容</div>' } },
       ],
     })
@@ -19,6 +20,7 @@ describe('app shell', () => {
 
     expect(wrapper.text()).toContain('首页')
     expect(wrapper.text()).toContain('账单')
+    expect(wrapper.text()).toContain('时间轴')
     expect(wrapper.text()).toContain('设置')
     expect(wrapper.get('[aria-label="新增记账"]')).toBeTruthy()
   })

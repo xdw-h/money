@@ -13,7 +13,7 @@ const hideNav = computed(() => Boolean(route.meta.hideNav))
       <RouterLink to="/" data-icon="⌂">首页</RouterLink>
       <RouterLink to="/bills" data-icon="▤">账单</RouterLink>
       <RouterLink class="add-record" to="/record/new" aria-label="新增记账">＋</RouterLink>
-      <RouterLink to="/bills?view=statistics" data-icon="◔">统计</RouterLink>
+      <RouterLink to="/timeline" data-icon="◷">时间轴</RouterLink>
       <RouterLink to="/settings" data-icon="⚙">设置</RouterLink>
     </nav>
   </div>
