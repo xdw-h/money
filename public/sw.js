@@ -14,13 +14,15 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || new URL(event.request.url).origin !== location.origin) return
   if (event.request.mode === 'navigate') {
     event.respondWith(fetch(event.request).then((response) => {
-      if (response.ok) caches.open(CACHE).then((cache) => cache.put(`${BASE}index.html`, response.clone()))
+      const copy = response.ok ? response.clone() : null
+      if (copy) caches.open(CACHE).then((cache) => cache.put(`${BASE}index.html`, copy))
       return response
     }).catch(() => caches.match(`${BASE}index.html`)))
     return
   }
   event.respondWith(caches.match(event.request).then((cached) => cached ?? fetch(event.request).then((response) => {
-    if (response.ok) caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()))
+    const copy = response.ok ? response.clone() : null
+    if (copy) caches.open(CACHE).then((cache) => cache.put(event.request, copy))
     return response
   })))
 })
