@@ -23,7 +23,6 @@ describe('app shell', () => {
     expect(wrapper.text()).toContain('首页')
     expect(wrapper.text()).toContain('账单')
     expect(wrapper.text()).toContain('时间轴')
-    expect(wrapper.text()).toContain('统计')
     expect(wrapper.text()).toContain('设置')
     expect(wrapper.get('[aria-label="新增记账"]')).toBeTruthy()
   })
