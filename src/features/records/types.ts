@@ -2,6 +2,7 @@ export type RecordType = 'expense' | 'income'
 
 export interface RecordEntity {
   id: string
+  ledgerId?: string
   type: RecordType
   amount: number
   categoryId: string
@@ -13,7 +14,14 @@ export interface RecordEntity {
   updatedAt: string
 }
 
-export type RecordDraft = Omit<RecordEntity, 'id' | 'createdAt' | 'updatedAt'>
+export interface LedgerEntity {
+  id: string
+  name: string
+  icon: string
+  createdAt: string
+}
+
+export type RecordDraft = Omit<RecordEntity, 'id' | 'ledgerId' | 'createdAt' | 'updatedAt'> & { ledgerId?: string }
 
 export interface ImageEntity {
   id: string

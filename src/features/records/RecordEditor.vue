@@ -5,6 +5,7 @@ import { formatMoney } from '../../shared/format/money'
 import AmountKeypad from './AmountKeypad.vue'
 import { addCategory, categoryIcons, categoryItems, deleteCategory, loadCategories, updateCategory } from './categoryStore'
 import type { RecordDraft, RecordType } from './types'
+import { activeLedger, activeLedgerId, loadLedgers } from '../ledgers/ledgerStore'
 
 const props = defineProps<{ busy?: boolean; error?: string; initial?: RecordDraft }>()
 const emit = defineEmits<{ save: [draft: RecordDraft & { files: File[] }]; cancel: [] }>()
@@ -33,6 +34,7 @@ function chooseType(value: RecordType) { type.value = value; categoryId.value = 
 function chooseCategory(id: string) { categoryId.value = id; subcategoryId.value = ''; subcategorySheetOpen.value = true }
 function chooseSubcategory(id: string) { subcategoryId.value = id; subcategorySheetOpen.value = false }
 loadCategories()
+loadLedgers()
 async function createCategory() {
   categoryError.value = ''
   try {
@@ -109,6 +111,7 @@ function enter(key: string) {
 function submit() {
   if (!amount.value || !categoryId.value) return
   emit('save', {
+    ledgerId: props.initial?.ledgerId ?? activeLedgerId.value,
     type: type.value, amount: amount.value, categoryId: categoryId.value, subcategoryId: subcategoryId.value || undefined,
     occurredAt: new Date(occurredAt.value).toISOString(), note: note.value.trim(), imageIds: [], files: files.value,
   })
@@ -117,7 +120,7 @@ function submit() {
 
 <template>
   <form class="record-editor" @submit.prevent="submit">
-    <header class="editor-header"><button type="button" aria-label="取消" @click="emit('cancel')">‹</button><strong>{{ initial ? '编辑账目' : '快速记账' }}</strong><span>保存</span></header>
+    <header class="editor-header"><button type="button" aria-label="取消" @click="emit('cancel')">‹</button><strong>{{ initial ? '编辑账目' : '快速记账' }}<small>{{ activeLedger?.icon }} {{ activeLedger?.name }}</small></strong><span>保存</span></header>
     <div class="type-switch">
       <button type="button" data-type="expense" :aria-pressed="type === 'expense'" @click="chooseType('expense')">支出</button>
       <button type="button" data-type="income" :aria-pressed="type === 'income'" @click="chooseType('income')">收入</button>
@@ -160,7 +163,7 @@ function submit() {
 
 <style scoped>
 .record-editor { min-height: 100vh; padding: 18px 20px 28px; display: grid; gap: 13px; background:var(--paper); }
-.editor-header { display: grid;grid-template-columns:44px 1fr 44px; align-items: center;text-align:center }.editor-header button { width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); font-size: 26px; }.editor-header strong{font-size:17px}.editor-header span { color:var(--expense);font-size:12px }
+.editor-header { display: grid;grid-template-columns:44px 1fr 44px; align-items: center;text-align:center }.editor-header button { width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); font-size: 26px; }.editor-header strong{display:grid;font-size:17px}.editor-header strong small{color:var(--muted);font-size:9px;font-weight:500}.editor-header span { color:var(--expense);font-size:12px }
 .type-switch { justify-self: stretch; display: grid;grid-template-columns:1fr 1fr; padding: 3px; border-radius: 13px; background: #f0e9e4; }.type-switch button { min-height: 38px; border: 0; border-radius: 10px; background: transparent; font-size: 14px; }.type-switch button[aria-pressed=true] { background: var(--surface);color:var(--expense); box-shadow: 0 2px 8px #6d493516; }
 .amount-row { min-height:68px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:18px;background:var(--surface);box-shadow:0 8px 24px rgba(87,57,39,.05)}.amount-row small{color:var(--muted);font-size:12px}.amount-row strong { max-width:75%;overflow:hidden;font-size:32px;color:var(--expense);font-variant-numeric:tabular-nums;text-overflow:ellipsis;white-space:nowrap; }
 .category-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px 5px; }.category-grid button { min-width:0;display: grid; gap: 5px; justify-items: center; border: 0; background: transparent; }.category-grid span { width: 46px; height: 46px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 14px; background: var(--surface);font-size:21px;box-shadow:0 4px 14px rgba(87,57,39,.06) }.category-grid .selected span { border-color: var(--expense); background: #fff0ed;box-shadow:0 0 0 2px #fff inset }.category-grid small { max-width:100%;font-size: 10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis }

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { db } from '../shared/db/database'
 import { formatMoney } from '../shared/format/money'
 import { categoryItems, loadCategories } from '../features/records/categoryStore'
 import ImageGallery from '../features/images/ImageGallery.vue'
 import type { ImageEntity, RecordEntity } from '../features/records/types'
+import { activeLedger, activeLedgerId, loadLedgers } from '../features/ledgers/ledgerStore'
 
 const records = ref<RecordEntity[]>([])
 const images = ref<ImageEntity[]>([])
@@ -57,19 +58,20 @@ function openImages(record: RecordEntity, selectedId: string) {
   galleryOpen.value = galleryImages.value.length > 0
 }
 
-onMounted(async () => {
-  await loadCategories()
+async function loadData() {
   ;[records.value, images.value] = await Promise.all([
-    db.records.orderBy('occurredAt').reverse().toArray(),
+    db.records.where('ledgerId').equals(activeLedgerId.value).reverse().sortBy('occurredAt'),
     db.images.toArray(),
   ])
-})
+}
+onMounted(async () => { await Promise.all([loadCategories(), loadLedgers()]); await loadData() })
+watch(activeLedgerId, loadData)
 onBeforeUnmount(() => objectUrls.forEach(URL.revokeObjectURL))
 </script>
 
 <template>
   <main class="page timeline-page">
-    <header><div><h1>记账时间轴</h1><small>每一笔，都是生活留下的刻度</small></div><span>◷</span></header>
+    <header><div><h1>记账时间轴</h1><small>{{ activeLedger?.icon }} {{ activeLedger?.name }} · 每一笔都是生活留下的刻度</small></div><span>◷</span></header>
     <section v-if="entries.length" class="timeline" aria-label="记账时间轴">
       <article v-for="entry in entries" :key="entry.record.id">
         <div class="date"><strong>{{ entry.date.day }}</strong><small>{{ entry.date.year }} · {{ entry.date.weekday }}</small><b>{{ entry.date.time }}</b></div>

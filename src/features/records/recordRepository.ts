@@ -20,6 +20,7 @@ export function createRecordRepository(database: BookkeepingDatabase) {
       const now = new Date().toISOString()
       const record: RecordEntity = {
         ...draft,
+        ledgerId: draft.ledgerId ?? 'default-ledger',
         id: createId(),
         imageIds: [...draft.imageIds],
         createdAt: now,

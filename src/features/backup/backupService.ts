@@ -16,8 +16,8 @@ function blobBytes(blob: Blob): Promise<Uint8Array> {
 }
 
 export async function exportBackup(database: BookkeepingDatabase): Promise<Blob> {
-  const [records, categories, images] = await Promise.all([
-    database.records.toArray(), database.categories.toArray(), database.images.toArray(),
+  const [records, categories, images, ledgers] = await Promise.all([
+    database.records.toArray(), database.categories.toArray(), database.images.toArray(), database.ledgers.toArray(),
   ])
   const zip = new JSZip()
   const manifest: BackupManifest = { version: 1, createdAt: new Date().toISOString(), records: records.length, images: images.length }
@@ -31,7 +31,7 @@ export async function exportBackup(database: BookkeepingDatabase): Promise<Blob>
     })
   }
   zip.file('manifest.json', JSON.stringify(manifest, null, 2))
-  zip.file('records.json', JSON.stringify({ records, categories, images: imageMetadata } satisfies BackupData, null, 2))
+  zip.file('records.json', JSON.stringify({ records, categories, ledgers, images: imageMetadata } satisfies BackupData, null, 2))
   const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } })
   return new Blob([bytes as BlobPart], { type: 'application/zip' })
 }
@@ -58,12 +58,14 @@ export async function importBackup(file: Blob, database: BookkeepingDatabase) {
     return { ...image, blob, thumbnailBlob: blob }
   }))
   let imported = 0; let skipped = 0; let imageCount = 0
-  await database.transaction('rw', database.records, database.images, database.categories, async () => {
+  await database.transaction('rw', database.records, database.images, database.categories, database.ledgers, async () => {
+    const restoredLedgers = data.ledgers?.length ? data.ledgers : [{ id: 'default-ledger', name: '日常账本', icon: '📒', createdAt: new Date().toISOString() }]
+    for (const ledger of restoredLedgers) await database.ledgers.put(ledger)
     for (const category of data.categories) await database.categories.put(category)
     for (const record of data.records) {
       if (await database.records.get(record.id)) { skipped++; continue }
       const recordImages = preparedImages.filter((image) => image.recordId === record.id)
-      await database.records.add(record)
+      await database.records.add({ ...record, ledgerId: record.ledgerId ?? 'default-ledger' })
       if (recordImages.length) await database.images.bulkAdd(recordImages)
       imported++; imageCount += recordImages.length
     }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { db } from '../shared/db/database'
 import { formatMoney } from '../shared/format/money'
 import { categoryItems, loadCategories } from '../features/records/categoryStore'
@@ -8,6 +8,7 @@ import TrendChart from '../features/statistics/TrendChart.vue'
 import RecentRecordList from '../features/records/RecentRecordList.vue'
 import type { ImageEntity, RecordEntity, RecordType } from '../features/records/types'
 import { useRouter } from 'vue-router'
+import { activeLedger, activeLedgerId, loadLedgers } from '../features/ledgers/ledgerStore'
 
 const records = ref<RecordEntity[]>([]); const images = ref<ImageEntity[]>([])
 const router = useRouter()
@@ -21,12 +22,14 @@ const trend = computed(() => trendSeries(records.value, { mode: mode.value, type
 const ranking = computed(() => categoryRanking(records.value, { mode: mode.value, type: type.value, anchor: anchor.value, timeZone }))
 const filtered = computed(() => filterPeriod(records.value, { mode: mode.value, type: type.value, anchor: anchor.value, timeZone }))
 const categoryMap = computed(() => new Map(categoryItems.value.map((item) => [item.id, item])))
-onMounted(async () => { await loadCategories(); records.value = await db.records.orderBy('occurredAt').reverse().toArray(); images.value = await db.images.toArray() })
+async function loadData() { records.value = await db.records.where('ledgerId').equals(activeLedgerId.value).reverse().sortBy('occurredAt'); const ids = records.value.map((item) => item.id); images.value = ids.length ? await db.images.where('recordId').anyOf(ids).toArray() : [] }
+onMounted(async () => { await Promise.all([loadCategories(), loadLedgers()]); await loadData() })
+watch(activeLedgerId, loadData)
 async function remove(id: string) { if (!confirm('确定删除这笔账目吗？')) return; await db.transaction('rw', db.records, db.images, async () => { await db.images.where('recordId').equals(id).delete(); await db.records.delete(id) }); records.value = records.value.filter((item) => item.id !== id) }
 </script>
 <template>
   <main class="page bills-page">
-    <header class="bills-header"><div><h1>{{ mode === 'month' ? '月账单' : '年账单' }}</h1><small>收支趋势与分类统计</small></div><RouterLink to="/settings">•••</RouterLink></header>
+    <header class="bills-header"><div><h1>{{ mode === 'month' ? '月账单' : '年账单' }}</h1><small>{{ activeLedger?.icon }} {{ activeLedger?.name }} · 独立统计</small></div><RouterLink to="/settings">•••</RouterLink></header>
     <div class="segmented"><button :class="{active:mode==='month'}" @click="mode='month'">月账单</button><button :class="{active:mode==='year'}" @click="mode='year'">年账单</button></div>
     <div class="period-input"><input v-if="mode === 'month'" v-model="monthValue" type="month" aria-label="选择月份" /><input v-else v-model.number="yearValue" type="number" min="2000" max="2100" aria-label="选择年份" /></div>
     <div class="segmented type"><button :class="{active:type==='expense'}" @click="type='expense'">支出</button><button :class="{active:type==='income'}" @click="type='income'">收入</button></div>
