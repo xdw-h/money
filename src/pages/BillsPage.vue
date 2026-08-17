@@ -18,10 +18,11 @@ const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toIS
 const anchor = ref(today); const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 const cycleAnchorDate = computed(() => activeLedger.value?.cycleAnchorDate)
 const cycleStartDates = computed(() => activeLedger.value?.cycleStartDates)
-const cycleRange = computed(() => billingCycleRange(anchor.value, cycleAnchorDate.value, cycleStartDates.value))
+const cycleEndDates = computed(() => activeLedger.value?.cycleEndDates)
+const cycleRange = computed(() => billingCycleRange(anchor.value, cycleAnchorDate.value, cycleStartDates.value, cycleEndDates.value))
 const monthValue = computed({ get: () => cycleRange.value.start.slice(0, 7), set: (value: string) => { anchor.value = `${value}-31` } })
 const yearValue = computed({ get: () => Number(anchor.value.slice(0, 4)), set: (value: number) => { anchor.value = `${value}-01-01` } })
-const periodOptions = computed(() => ({ mode: mode.value, anchor: anchor.value, timeZone, cycleAnchorDate: cycleAnchorDate.value, cycleStartDates: cycleStartDates.value }))
+const periodOptions = computed(() => ({ mode: mode.value, anchor: anchor.value, timeZone, cycleAnchorDate: cycleAnchorDate.value, cycleStartDates: cycleStartDates.value, cycleEndDates: cycleEndDates.value }))
 const summary = computed(() => summarize(records.value, periodOptions.value))
 const cumulativeSummary = computed(() => summarizeThroughYear(records.value, { mode: 'year', anchor: anchor.value, timeZone }))
 const trend = computed(() => trendSeries(records.value, { ...periodOptions.value, type: type.value }))

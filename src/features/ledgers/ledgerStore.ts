@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { db } from '../../shared/db/database'
 import { createId } from '../../shared/id/createId'
 import type { LedgerEntity } from '../records/types'
-import { localTodayKey, normalizeCycleAnchorDate, normalizeCycleStartDates } from './cycleAnchorDate'
+import { localTodayKey, normalizeCycleAnchorDate, normalizeCycleEndDates, normalizeCycleStartDates } from './cycleAnchorDate'
 
 const DEFAULT_ID = 'default-ledger'
 export const ledgerItems = ref<LedgerEntity[]>([])
@@ -25,7 +25,7 @@ export async function loadLedgers() {
     }
     ledgerItems.value = saved.map((ledger) => {
       const { cycleStartDay, ...rest } = ledger
-      return { ...rest, cycleAnchorDate: normalizeCycleAnchorDate(ledger.cycleAnchorDate, cycleStartDay), cycleStartDates: normalizeCycleStartDates(ledger.cycleStartDates) }
+      return { ...rest, cycleAnchorDate: normalizeCycleAnchorDate(ledger.cycleAnchorDate, cycleStartDay), cycleStartDates: normalizeCycleStartDates(ledger.cycleStartDates), cycleEndDates: normalizeCycleEndDates(ledger.cycleEndDates) }
     }); loaded = true
   }
   if (!ledgerItems.value.some((item) => item.id === activeLedgerId.value)) setActiveLedger(ledgerItems.value[0].id)
@@ -68,6 +68,23 @@ export async function clearLedgerCycleStartDate(id: string, month: string) {
   if (!ledger) throw new Error('账本不存在')
   const cycleStartDates = { ...ledger.cycleStartDates }; delete cycleStartDates[month]
   const updated = { ...ledger, cycleStartDates }
+  await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
+}
+
+export async function setLedgerCycleEndDate(id: string, month: string, date?: string) {
+  const ledger = ledgerItems.value.find((item) => item.id === id)
+  if (!ledger) throw new Error('账本不存在')
+  const start = ledger.cycleStartDates?.[month] || `${month}-01`
+  if (date && date < start) throw new Error('终止日不能早于起始日')
+  const updated = { ...ledger, cycleEndDates: normalizeCycleEndDates({ ...ledger.cycleEndDates, [month]: date }) }
+  await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
+}
+
+export async function clearLedgerCycleEndDate(id: string, month: string) {
+  const ledger = ledgerItems.value.find((item) => item.id === id)
+  if (!ledger) throw new Error('账本不存在')
+  const cycleEndDates = { ...ledger.cycleEndDates }; delete cycleEndDates[month]
+  const updated = { ...ledger, cycleEndDates }
   await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
 }
 

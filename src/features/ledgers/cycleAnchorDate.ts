@@ -27,3 +27,10 @@ export function normalizeCycleStartDates(value: unknown) {
     /^\d{4}-\d{2}$/.test(month) && isCalendarDate(date) && date.startsWith(`${month}-`),
   )) as Record<string, string>
 }
+
+export function normalizeCycleEndDates(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(Object.entries(value).filter(([month, date]) =>
+    /^\d{4}-\d{2}$/.test(month) && isCalendarDate(date),
+  )) as Record<string, string>
+}

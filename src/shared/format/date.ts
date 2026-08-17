@@ -44,7 +44,7 @@ function calendarKey(date: Date) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
 }
 
-export function billingCycleRange(anchor: string, cycleAnchorDate: string | number = 1, cycleStartDates: Record<string, string> = {}) {
+export function billingCycleRange(anchor: string, cycleAnchorDate: string | number = 1, cycleStartDates: Record<string, string> = {}, cycleEndDates: Record<string, string> = {}) {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(anchor)
   const anchorDay = typeof cycleAnchorDate === 'string' ? Number(/^(?:\d{4})-(?:\d{2})-(\d{2})$/.exec(cycleAnchorDate)?.[1]) : cycleAnchorDate
   const normalizedDay = Math.min(31, Math.max(1, Math.trunc(anchorDay) || 1))
@@ -63,7 +63,11 @@ export function billingCycleRange(anchor: string, cycleAnchorDate: string | numb
   const startsThisMonth = day >= currentStart.getUTCDate()
   const startMonth = startsThisMonth ? month : month - 1
   const start = resolveStart(year, startMonth)
-  const endExclusive = resolveStart(start.getUTCFullYear(), start.getUTCMonth() + 2)
+  const cycleMonth = calendarKey(start).slice(0, 7)
+  const explicitEnd = cycleEndDates[cycleMonth]
+  const endExclusive = explicitEnd && explicitEnd >= calendarKey(start)
+    ? new Date(Date.parse(`${explicitEnd}T00:00:00Z`) + 86400000)
+    : resolveStart(start.getUTCFullYear(), start.getUTCMonth() + 2)
   const endInclusive = new Date(endExclusive.getTime() - 86400000)
   return { start: calendarKey(start), endExclusive: calendarKey(endExclusive), endInclusive: calendarKey(endInclusive) }
 }

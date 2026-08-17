@@ -6,7 +6,7 @@ const storageMocks = vi.hoisted(() => ({
   getStatus: vi.fn(),
   request: vi.fn(),
 }))
-const ledgerMocks = vi.hoisted(() => ({ addLedger: vi.fn(), updateLedger: vi.fn(), setCycle: vi.fn(), clearCycle: vi.fn() }))
+const ledgerMocks = vi.hoisted(() => ({ addLedger: vi.fn(), updateLedger: vi.fn(), setCycle: vi.fn(), clearCycle: vi.fn(), setCycleEnd: vi.fn(), clearCycleEnd: vi.fn() }))
 
 vi.mock('../../src/features/storage/storageProtection', () => ({
   formatBytes: (value: number | null) => value === null ? '-' : `${value} B`,
@@ -25,6 +25,8 @@ vi.mock('../../src/features/ledgers/ledgerStore', async () => {
     setActiveLedger: vi.fn(),
     setLedgerCycleStartDate: ledgerMocks.setCycle,
     clearLedgerCycleStartDate: ledgerMocks.clearCycle,
+    setLedgerCycleEndDate: ledgerMocks.setCycleEnd,
+    clearLedgerCycleEndDate: ledgerMocks.clearCycleEnd,
     updateLedger: ledgerMocks.updateLedger,
   }
 })

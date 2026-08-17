@@ -12,6 +12,11 @@ describe('money formatter', () => {
     expect(billingCycleRange('2026-09-05', '2025-01-01', overrides)).toEqual({ start: '2026-08-10', endExclusive: '2026-09-20', endInclusive: '2026-09-19' })
     expect(billingCycleRange('2026-09-21', '2025-01-01', overrides)).toEqual({ start: '2026-09-20', endExclusive: '2026-10-01', endInclusive: '2026-09-30' })
   })
+
+  it('supports an inclusive custom end date for a cycle', () => {
+    expect(billingCycleRange('2026-08-20', '2025-01-01', { '2026-08': '2026-08-10' }, { '2026-08': '2026-09-05' }))
+      .toEqual({ start: '2026-08-10', endExclusive: '2026-09-06', endInclusive: '2026-09-05' })
+  })
 })
 
 describe('date formatter', () => {

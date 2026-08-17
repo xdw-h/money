@@ -12,8 +12,8 @@ import { billingCycleRange, formatDate } from '../shared/format/date'
 const records = ref<RecordEntity[]>([]); const images = ref<ImageEntity[]>([])
 const router = useRouter()
 const anchor = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
-const cycleRange = computed(() => billingCycleRange(anchor, activeLedger.value?.cycleAnchorDate, activeLedger.value?.cycleStartDates))
-const summary = computed(() => summarize(records.value, { mode: 'month', anchor, cycleAnchorDate: activeLedger.value?.cycleAnchorDate, cycleStartDates: activeLedger.value?.cycleStartDates }))
+const cycleRange = computed(() => billingCycleRange(anchor, activeLedger.value?.cycleAnchorDate, activeLedger.value?.cycleStartDates, activeLedger.value?.cycleEndDates))
+const summary = computed(() => summarize(records.value, { mode: 'month', anchor, cycleAnchorDate: activeLedger.value?.cycleAnchorDate, cycleStartDates: activeLedger.value?.cycleStartDates, cycleEndDates: activeLedger.value?.cycleEndDates }))
 type SummaryView = 'balance' | 'expense' | 'income'
 type RecentRange = '3' | '7' | 'month'
 const summaryView = ref<SummaryView>('expense')
