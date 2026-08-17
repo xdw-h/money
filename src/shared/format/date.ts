@@ -55,19 +55,20 @@ export function billingCycleRange(anchor: string, cycleAnchorDate: string | numb
     const normalized = new Date(Date.UTC(targetYear, targetMonth - 1, 1))
     const key = `${normalized.getUTCFullYear()}-${String(normalized.getUTCMonth() + 1).padStart(2, '0')}`
     const override = cycleStartDates[key]
-    return override && override.startsWith(`${key}-`)
-      ? calendarDate(normalized.getUTCFullYear(), normalized.getUTCMonth() + 1, Number(override.slice(8, 10)))
-      : calendarDate(normalized.getUTCFullYear(), normalized.getUTCMonth() + 1, normalizedDay)
+    return { key, date: override
+      ? new Date(`${override}T00:00:00Z`)
+      : calendarDate(normalized.getUTCFullYear(), normalized.getUTCMonth() + 1, normalizedDay) }
   }
+  const anchorDate = calendarDate(year, month, day)
   const currentStart = resolveStart(year, month)
-  const startsThisMonth = day >= currentStart.getUTCDate()
+  const startsThisMonth = anchorDate >= currentStart.date
   const startMonth = startsThisMonth ? month : month - 1
-  const start = resolveStart(year, startMonth)
-  const cycleMonth = calendarKey(start).slice(0, 7)
-  const explicitEnd = cycleEndDates[cycleMonth]
+  const resolved = resolveStart(year, startMonth)
+  const start = resolved.date
+  const explicitEnd = cycleEndDates[resolved.key]
   const endExclusive = explicitEnd && explicitEnd >= calendarKey(start)
     ? new Date(Date.parse(`${explicitEnd}T00:00:00Z`) + 86400000)
-    : resolveStart(start.getUTCFullYear(), start.getUTCMonth() + 2)
+    : resolveStart(year, startMonth + 1).date
   const endInclusive = new Date(endExclusive.getTime() - 86400000)
   return { start: calendarKey(start), endExclusive: calendarKey(endExclusive), endInclusive: calendarKey(endInclusive) }
 }

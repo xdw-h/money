@@ -24,7 +24,7 @@ export function normalizeCycleAnchorDate(value: unknown, legacyStartDay: unknown
 export function normalizeCycleStartDates(value: unknown) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
   return Object.fromEntries(Object.entries(value).filter(([month, date]) =>
-    /^\d{4}-\d{2}$/.test(month) && isCalendarDate(date) && date.startsWith(`${month}-`),
+    /^\d{4}-\d{2}$/.test(month) && isCalendarDate(date),
   )) as Record<string, string>
 }
 

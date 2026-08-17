@@ -17,6 +17,11 @@ describe('money formatter', () => {
     expect(billingCycleRange('2026-08-20', '2025-01-01', { '2026-08': '2026-08-10' }, { '2026-08': '2026-09-05' }))
       .toEqual({ start: '2026-08-10', endExclusive: '2026-09-06', endInclusive: '2026-09-05' })
   })
+
+  it('allows a named cycle to span arbitrary calendar months', () => {
+    expect(billingCycleRange('2026-08-15', '2025-01-01', { '2026-08': '2026-07-20' }, { '2026-08': '2026-10-08' }))
+      .toEqual({ start: '2026-07-20', endExclusive: '2026-10-09', endInclusive: '2026-10-08' })
+  })
 })
 
 describe('date formatter', () => {
