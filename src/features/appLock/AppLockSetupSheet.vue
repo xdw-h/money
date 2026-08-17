@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import PatternLock from './PatternLock.vue'
+import { useBodyScrollLock } from '../../shared/ui/useBodyScrollLock'
 import { configurePattern, configurePin, disableAppLock, getAppLockType, hasAppLock, verifyCredential, type AppLockType } from './appLockStore'
 
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -12,6 +13,7 @@ const pendingAction = ref<'disable' | 'change'>('change')
 const firstCredential = ref<string | number[] | null>(null)
 const pin = ref('')
 const error = ref('')
+useBodyScrollLock()
 
 const choose = (type: AppLockType) => { selectedType.value = type; pin.value = ''; error.value = ''; step.value = 'enter' }
 const beginProtectedAction = (action: 'disable' | 'change') => { pendingAction.value = action; pin.value = ''; error.value = ''; step.value = 'verify' }
@@ -40,7 +42,7 @@ const savePattern = async (pattern: number[]) => {
 </script>
 
 <template>
-  <div class="lock-sheet-overlay" @click.self="emit('close')">
+  <div class="lock-sheet-overlay" @click.self="emit('close')" @touchmove.self.prevent>
     <section class="lock-sheet" role="dialog" aria-modal="true" aria-label="应用锁设置">
       <header><div><strong>应用锁</strong><small>离开应用 5 分钟后自动锁定</small></div><button type="button" aria-label="关闭应用锁设置" @click="emit('close')">×</button></header>
       <template v-if="step === 'manage'">
@@ -74,4 +76,7 @@ const savePattern = async (pattern: number[]) => {
 
 <style scoped>
 .lock-sheet-overlay{position:fixed;z-index:140;inset:0;display:flex;align-items:flex-end;background:rgba(34,30,28,.48);backdrop-filter:blur(3px)}.lock-sheet{width:min(100%,430px);max-height:92dvh;margin:0 auto;padding:20px 20px calc(22px + env(safe-area-inset-bottom));display:grid;gap:13px;overflow:auto;border-radius:28px 28px 0 0;background:var(--surface)}header{display:flex;align-items:center;justify-content:space-between}header div{display:grid;gap:3px}header strong{font-size:19px}header small{color:var(--muted);font-size:10px}header button{width:36px;height:36px;border:0;border-radius:50%;background:var(--surface-soft);font-size:22px}.lock-sheet>p{margin:4px 0;color:var(--muted);font-size:12px}.choice{min-height:64px;padding:10px 14px;display:flex;align-items:center;gap:13px;border:1px solid var(--border);border-radius:16px;background:var(--surface-soft);text-align:left}.choice b{width:44px;color:var(--primary);font-size:19px}.choice span{font-weight:700}.lock-sheet input{height:50px;padding:0 16px;border:1px solid var(--border);border-radius:14px;background:var(--surface-soft);color:var(--text);font-size:20px;letter-spacing:8px}.primary,.danger{min-height:46px;border:0;border-radius:14px;font-weight:700}.primary{background:var(--primary);color:white}.danger{background:color-mix(in srgb,var(--expense) 10%,var(--surface));color:var(--expense)}.lock-enabled{padding:15px;border-radius:15px;background:var(--primary-soft);color:var(--primary);font-weight:700}.sheet-error{color:var(--expense)!important;text-align:center}
+</style>
+<style scoped>
+.lock-sheet-overlay{overscroll-behavior:none}.lock-sheet{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 </style>

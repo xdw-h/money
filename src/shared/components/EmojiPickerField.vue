@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { useBodyScrollLock } from '../ui/useBodyScrollLock'
 
 defineProps<{ modelValue: string; label: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const open = ref(false)
-let lockedScrollY = 0
-let previousBodyStyles: Partial<CSSStyleDeclaration> = {}
+useBodyScrollLock(open)
 const iconGroups = [
   { name: '餐饮', icons: ['🍽️','🍜','🍚','🍱','🍲','🥪','🍔','🍕','🥗','☕','🧋','🍪'] },
   { name: '购物生活', icons: ['🛒','🛍️','👕','👟','👜','⌚','💄','🧴','🧻','🧹','🍳','📦'] },
@@ -18,18 +18,8 @@ function choose(icon: string) { emit('update:modelValue', icon); open.value = fa
 function close() { open.value = false }
 function onOverlayClick(event: MouseEvent) { if (event.target === event.currentTarget) close() }
 function onKeydown(event: KeyboardEvent) { if (event.key === 'Escape' && open.value) close() }
-function lockPageScroll() {
-  lockedScrollY = window.scrollY
-  previousBodyStyles = { position: document.body.style.position, top: document.body.style.top, width: document.body.style.width, overflow: document.body.style.overflow }
-  Object.assign(document.body.style, { position: 'fixed', top: `-${lockedScrollY}px`, width: '100%', overflow: 'hidden' })
-}
-function unlockPageScroll() {
-  Object.assign(document.body.style, previousBodyStyles)
-  if (lockedScrollY) window.scrollTo(0, lockedScrollY)
-}
-watch(open, (visible) => visible ? lockPageScroll() : unlockPageScroll())
 onMounted(() => window.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); if (open.value) unlockPageScroll() })
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>

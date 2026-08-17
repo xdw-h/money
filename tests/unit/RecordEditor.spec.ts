@@ -29,6 +29,7 @@ describe('RecordEditor', () => {
     await wrapper.get('[data-type="income"]').trigger('click')
     expect(wrapper.get('[data-type="income"]').attributes('aria-pressed')).toBe('true')
     expect(wrapper.get('.category-grid').classes()).toContain('income-grid')
+    expect(wrapper.find('.category-grid .add-category').exists()).toBe(false)
     expect(wrapper.get('[data-key="save"]').attributes('disabled')).toBeDefined()
   })
 

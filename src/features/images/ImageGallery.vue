@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useBodyScrollLock } from '../../shared/ui/useBodyScrollLock'
 
 const props = defineProps<{ images: { id: string; url: string; name: string }[]; open: boolean; start?: number; deletable?: boolean }>()
 const emit = defineEmits<{ close: []; delete: [id: string] }>()
 const index = ref(0)
 watch(() => [props.open, props.start] as const, () => { index.value = Math.min(props.start ?? 0, Math.max(0, props.images.length - 1)) }, { immediate: true })
 const current = computed(() => props.images[index.value])
+const visible = computed(() => props.open && Boolean(current.value))
+useBodyScrollLock(visible)
 function move(delta: number) { index.value = (index.value + delta + props.images.length) % props.images.length }
 </script>
 
@@ -19,7 +22,7 @@ function move(delta: number) { index.value = (index.value + delta + props.images
 </template>
 
 <style scoped>
-.gallery { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; background: #231f1ddd;backdrop-filter:blur(16px); color: white; }
+.gallery { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; overscroll-behavior:none;touch-action:none;background: #231f1ddd;backdrop-filter:blur(16px); color: white; }
 .gallery header { position: absolute; top: max(16px, env(safe-area-inset-top)); left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: center; }
 .gallery header i { width: 44px; }
 .gallery header button, .arrow { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: white; font-size: 20px; }
