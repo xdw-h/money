@@ -29,4 +29,19 @@ describe('statistics aggregation', () => {
   it('filters bill details to the selected period and type', () => {
     expect(filterPeriod(records, { type: 'expense', mode: 'month', anchor: '2026-08-15', timeZone: 'Asia/Shanghai' }).map(({ id }) => id)).toEqual(['2'])
   })
+
+  it('uses an inclusive ledger start and exclusive next-cycle start', () => {
+    const cycleRecords: RecordEntity[] = [
+      { id: 'before', type: 'expense', amount: 100, categoryId: 'food', occurredAt: '2026-08-14T15:59:59.000Z', note: '', imageIds: [], createdAt: '', updatedAt: '' },
+      { id: 'start', type: 'expense', amount: 200, categoryId: 'food', occurredAt: '2026-08-14T16:00:00.000Z', note: '', imageIds: [], createdAt: '', updatedAt: '' },
+      { id: 'last', type: 'expense', amount: 300, categoryId: 'food', occurredAt: '2026-09-14T15:59:59.000Z', note: '', imageIds: [], createdAt: '', updatedAt: '' },
+      { id: 'next', type: 'expense', amount: 400, categoryId: 'food', occurredAt: '2026-09-14T16:00:00.000Z', note: '', imageIds: [], createdAt: '', updatedAt: '' },
+    ]
+    const options = { type: 'expense' as const, mode: 'month' as const, anchor: '2026-08-17', timeZone: 'Asia/Shanghai', cycleAnchorDate: '2024-03-15' }
+    expect(filterPeriod(cycleRecords, options).map(({ id }) => id)).toEqual(['start', 'last'])
+    expect(summarize(cycleRecords, options)).toEqual({ income: 0, expense: 500, balance: -500, count: 2 })
+    const series = trendSeries(cycleRecords, options)
+    expect(series.labels[0]).toBe('8-15')
+    expect(series.labels.at(-1)).toBe('9-14')
+  })
 })

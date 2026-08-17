@@ -25,6 +25,7 @@ describe('backup service', () => {
     expect(result).toEqual({ imported: 1, skipped: 0, images: 1 })
     expect((await target.records.get('record-1'))?.note).toBe('牙科')
     expect(await target.images.count()).toBe(1)
+    expect((await target.ledgers.get('default-ledger'))?.cycleAnchorDate).toMatch(/^\d{4}-\d{2}-01$/)
   })
 
   it('validates the complete archive before writing', async () => {

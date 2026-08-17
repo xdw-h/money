@@ -9,7 +9,7 @@ export interface AppTheme {
 }
 
 export const appThemes: AppTheme[] = [
-  { id: 'rose', name: '奶油淡红', description: '温柔、轻盈的默认手账风', colors: ['#f07b70', '#fbf7f1', '#fff7f2'], tokens: { paper: '#fbf7f1', surface: '#fffdfa', 'surface-soft': '#fff7f2', ink: '#312c2a', muted: '#9a918c', 'grid-line': 'rgba(180,154,137,.10)', primary: '#f07b70', 'primary-soft': '#fff0ed', income: '#72ad66', expense: '#e56f68', accent: '#f4b66d', lavender: '#a894cd', blue: '#7ca9cc', border: '#eee2d9', shadow: '87,57,39' } },
+  { id: 'rose', name: '奶油淡红', description: '温柔、轻盈的默认手账风', colors: ['#f07b70', '#fbf7f1', '#fff7f2'], tokens: { paper: '#ffffff', surface: '#fffdfa', 'surface-soft': '#fff7f2', ink: '#312c2a', muted: '#9a918c', 'grid-line': 'rgba(180,154,137,.10)', primary: '#f07b70', 'primary-soft': '#fff0ed', income: '#72ad66', expense: '#e56f68', accent: '#f4b66d', lavender: '#a894cd', blue: '#7ca9cc', border: '#eee2d9', shadow: '87,57,39' } },
   { id: 'taro', name: '芋泥紫', description: '低饱和紫调，安静细腻', colors: ['#76558f', '#f3edf7', '#dfd0e9'], tokens: { paper: '#f3edf7', surface: '#fffcff', 'surface-soft': '#ebe1f1', ink: '#342c39', muted: '#8e8195', 'grid-line': 'rgba(112,78,137,.12)', primary: '#76558f', 'primary-soft': '#e6d8ee', income: '#719879', expense: '#b45f76', accent: '#ad8966', lavender: '#9477aa', blue: '#7d94ad', border: '#dfd1e6', shadow: '76,52,91' } },
   { id: 'tiffany', name: '蒂芙尼蓝', description: '清透、精致的蓝绿色调', colors: ['#159f9a', '#eff8f7', '#d8f0ed'], tokens: { paper: '#eff8f7', surface: '#fcfffe', 'surface-soft': '#e5f5f3', ink: '#263534', muted: '#7f9290', 'grid-line': 'rgba(21,159,154,.09)', primary: '#159f9a', 'primary-soft': '#dff3f1', income: '#579673', expense: '#d46f78', accent: '#d8a95e', lavender: '#998ab7', blue: '#579cad', border: '#d7e9e7', shadow: '34,91,88' } },
   { id: 'spring', name: '嫩绿色', description: '柔和、自然的新芽气息', colors: ['#78a96f', '#f3f8ef', '#e2efdc'], tokens: { paper: '#f3f8ef', surface: '#fdfffb', 'surface-soft': '#eaf4e5', ink: '#2f382c', muted: '#879083', 'grid-line': 'rgba(100,151,88,.09)', primary: '#78a96f', 'primary-soft': '#e3f0de', income: '#5f9568', expense: '#d57670', accent: '#d4a95f', lavender: '#9c8ab7', blue: '#719eb1', border: '#dde9d8', shadow: '66,96,58' } },
@@ -28,5 +28,6 @@ export function applyTheme(id: ThemeId) {
   const root = document.documentElement
   root.dataset.theme = theme.id
   Object.entries(theme.tokens).forEach(([name, value]) => root.style.setProperty(`--${name}`, value))
+  root.style.setProperty('--paper', '#ffffff')
   localStorage.setItem(storageKey, theme.id)
 }

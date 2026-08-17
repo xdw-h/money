@@ -1,7 +1,8 @@
 import type { RecordEntity, RecordType } from '../records/types'
+import { billingCycleRange } from '../../shared/format/date'
 
 export type PeriodMode = 'month' | 'year'
-interface PeriodOptions { mode: PeriodMode; anchor: string; timeZone?: string }
+interface PeriodOptions { mode: PeriodMode; anchor: string; timeZone?: string; cycleAnchorDate?: string }
 interface TrendOptions extends PeriodOptions { type: RecordType }
 
 function dateParts(iso: string, timeZone?: string) {
@@ -16,10 +17,17 @@ function anchorParts(anchor: string) {
   return { year, month }
 }
 
+function dateKey({ year, month, day }: { year: number; month: number; day: number }) {
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
 function inPeriod(record: RecordEntity, options: PeriodOptions) {
   const date = dateParts(record.occurredAt, options.timeZone)
   const anchor = anchorParts(options.anchor)
-  return date.year === anchor.year && (options.mode === 'year' || date.month === anchor.month)
+  if (options.mode === 'year') return date.year === anchor.year
+  const range = billingCycleRange(options.anchor, options.cycleAnchorDate)
+  const key = dateKey(date)
+  return key >= range.start && key < range.endExclusive
 }
 
 export function summarize(records: RecordEntity[], options: PeriodOptions) {
@@ -47,12 +55,22 @@ export function categoryRanking(records: RecordEntity[], options: TrendOptions) 
 
 export function trendSeries(records: RecordEntity[], options: TrendOptions) {
   const anchor = anchorParts(options.anchor)
-  const length = options.mode === 'year' ? 12 : new Date(anchor.year, anchor.month, 0).getDate()
-  const labels = Array.from({ length }, (_, index) => options.mode === 'year' ? `${index + 1}月` : `${index + 1}`)
+  const range = billingCycleRange(options.anchor, options.cycleAnchorDate)
+  const startTime = Date.parse(`${range.start}T00:00:00Z`); const endTime = Date.parse(`${range.endExclusive}T00:00:00Z`)
+  const length = options.mode === 'year' ? 12 : Math.round((endTime - startTime) / 86400000)
+  const dateKeys = options.mode === 'year' ? [] : Array.from({ length }, (_, index) => {
+    const date = new Date(startTime + index * 86400000)
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
+  })
+  const labels = options.mode === 'year'
+    ? Array.from({ length }, (_, index) => `${index + 1}月`)
+    : dateKeys.map((key) => options.cycleAnchorDate && !options.cycleAnchorDate.endsWith('-01') ? `${Number(key.slice(5, 7))}-${Number(key.slice(8, 10))}` : `${Number(key.slice(8, 10))}`)
   const values = Array.from({ length }, () => 0)
+  const dateIndexes = new Map(dateKeys.map((key, index) => [key, index]))
   for (const record of filterPeriod(records, options)) {
     const date = dateParts(record.occurredAt, options.timeZone)
-    values[options.mode === 'year' ? date.month - 1 : date.day - 1] += record.amount
+    const index = options.mode === 'year' ? date.month - 1 : dateIndexes.get(dateKey(date))
+    if (index !== undefined) values[index] += record.amount
   }
   return { labels, values }
 }

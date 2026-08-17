@@ -1,9 +1,14 @@
-const CACHE = 'money-shell-v4'
+const BUILD_VERSION = '__BUILD_VERSION__'
+const CACHE = `money-shell-${BUILD_VERSION}`
 const BASE = new URL('./', self.registration.scope).pathname
 const SHELL = [BASE, `${BASE}index.html`, `${BASE}manifest.webmanifest`, `${BASE}icon.svg?v=2`]
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()))
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)))
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
 })
 
 self.addEventListener('activate', (event) => {

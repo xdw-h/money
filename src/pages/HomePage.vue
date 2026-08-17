@@ -7,11 +7,13 @@ import RecentRecordList from '../features/records/RecentRecordList.vue'
 import type { ImageEntity, RecordEntity } from '../features/records/types'
 import { useRouter } from 'vue-router'
 import { activeLedger, activeLedgerId, ledgerItems, loadLedgers, setActiveLedger } from '../features/ledgers/ledgerStore'
+import { billingCycleRange, formatDate } from '../shared/format/date'
 
 const records = ref<RecordEntity[]>([]); const images = ref<ImageEntity[]>([])
 const router = useRouter()
-const anchor = new Date().toISOString().slice(0, 10)
-const summary = computed(() => summarize(records.value, { mode: 'month', anchor }))
+const anchor = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+const cycleRange = computed(() => billingCycleRange(anchor, activeLedger.value?.cycleAnchorDate))
+const summary = computed(() => summarize(records.value, { mode: 'month', anchor, cycleAnchorDate: activeLedger.value?.cycleAnchorDate }))
 type SummaryView = 'balance' | 'expense' | 'income'
 type RecentRange = '3' | '7' | 'month'
 const summaryView = ref<SummaryView>('expense')
@@ -26,8 +28,11 @@ function toggleAmounts() { amountsVisible.value = !amountsVisible.value; localSt
 const recentRecords = computed(() => {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const start = new Date(today)
-  if (recentRange.value === 'month') start.setDate(1)
-  else start.setDate(start.getDate() - Number(recentRange.value) + 1)
+  if (recentRange.value === 'month') return records.value.filter((record) => {
+    const key = formatDate(record.occurredAt)
+    return key >= cycleRange.value.start && key < cycleRange.value.endExclusive
+  }).sort((a, b) => recentSort.value === 'amount' ? b.amount - a.amount : +new Date(b.occurredAt) - +new Date(a.occurredAt))
+  start.setDate(start.getDate() - Number(recentRange.value) + 1)
   return records.value.filter((record) => new Date(record.occurredAt) >= start)
     .sort((a, b) => recentSort.value === 'amount' ? b.amount - a.amount : +new Date(b.occurredAt) - +new Date(a.occurredAt))
 })
@@ -38,7 +43,7 @@ async function remove(id: string) { if (!confirm('确定删除这笔账目吗？
 </script>
 <template>
   <main class="page home-page">
-    <header class="page-header"><div><label class="ledger-switch"><span>{{ activeLedger?.icon }}</span><select :value="activeLedgerId" aria-label="切换账本" @change="setActiveLedger(($event.target as HTMLSelectElement).value)"><option v-for="ledger in ledgerItems" :key="ledger.id" :value="ledger.id">{{ ledger.name }}</option></select></label><small>{{ new Date().getFullYear() }}年{{ new Date().getMonth() + 1 }}月 · 独立统计</small></div></header>
+    <header class="page-header"><div><label class="ledger-switch"><span>{{ activeLedger?.icon }}</span><select :value="activeLedgerId" aria-label="切换账本" @change="setActiveLedger(($event.target as HTMLSelectElement).value)"><option v-for="ledger in ledgerItems" :key="ledger.id" :value="ledger.id">{{ ledger.name }}</option></select></label><small>{{ cycleRange.start }} 至 {{ cycleRange.endInclusive }} · 独立统计</small></div></header>
     <section class="balance-card">
       <div class="summary-tabs"><button v-for="item in summaryViews" :key="item.id" type="button" :aria-pressed="summaryView === item.id" @click="summaryView = item.id">{{ item.label }}</button></div>
       <div class="balance-label"><span>{{ summaryViews.find(item => item.id === summaryView)?.label }}</span><button type="button" :aria-label="amountsVisible ? '隐藏金额' : '显示金额'" @click="toggleAmounts"><svg v-if="amountsVisible" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.8"/></svg><svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 6.1A10 10 0 0 1 12 6c6 0 9.5 6 9.5 6a16 16 0 0 1-2.2 2.8M6.2 6.2C3.8 7.8 2.5 12 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 3-.5M9.9 9.9A3 3 0 0 0 14.1 14.1"/></svg></button></div>

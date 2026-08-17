@@ -6,13 +6,14 @@ import { processImage } from '../features/images/imageService'
 import { db } from '../shared/db/database'
 import { createRecordRepository } from '../features/records/recordRepository'
 import { createId } from '../shared/id/createId'
-import type { RecordDraft } from '../features/records/types'
+import type { ImageEntity, RecordDraft } from '../features/records/types'
 
 const router = useRouter()
 const route = useRoute()
 const busy = ref(false)
 const error = ref('')
 const initial = ref<RecordDraft>()
+const initialImages = ref<ImageEntity[]>([])
 const repository = createRecordRepository(db)
 const editingId = typeof route.params.id === 'string' ? route.params.id : ''
 onMounted(async () => {
@@ -21,6 +22,8 @@ onMounted(async () => {
   if (!record) { error.value = '账目不存在'; return }
   const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...draft } = record
   initial.value = draft
+  const images = await db.images.bulkGet(record.imageIds)
+  initialImages.value = images.filter((image): image is ImageEntity => Boolean(image))
 })
 
 async function save(payload: RecordDraft & { files: File[] }) {
@@ -31,9 +34,11 @@ async function save(payload: RecordDraft & { files: File[] }) {
     await db.transaction('rw', db.records, db.images, async () => {
       const ids = processed.map(() => createId())
       const imageIds = [...draft.imageIds, ...ids]
+      const removedImageIds = editingId ? (initial.value?.imageIds ?? []).filter((id) => !draft.imageIds.includes(id)) : []
       const record = editingId
         ? await repository.updateRecord(editingId, { ...draft, imageIds })
         : await repository.createRecord({ ...draft, imageIds })
+      if (removedImageIds.length) await db.images.bulkDelete(removedImageIds)
       await db.images.bulkAdd(processed.map((image, index) => ({
         id: ids[index], recordId: record.id, name: files[index].name,
         mimeType: image.mimeType, size: image.blob.size, blob: image.blob,
@@ -48,4 +53,4 @@ async function save(payload: RecordDraft & { files: File[] }) {
   } finally { busy.value = false }
 }
 </script>
-<template><RecordEditor :busy="busy" :error="error" :initial="initial" @save="save" @cancel="$router.back()" /></template>
+<template><RecordEditor :busy="busy" :error="error" :initial="initial" :initial-images="initialImages" @save="save" @cancel="$router.back()" /></template>

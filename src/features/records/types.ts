@@ -18,6 +18,8 @@ export interface LedgerEntity {
   id: string
   name: string
   icon: string
+  cycleAnchorDate: string
+  cycleStartDay?: number
   createdAt: string
 }
 

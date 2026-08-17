@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { db } from '../../shared/db/database'
 import { createId } from '../../shared/id/createId'
 import type { LedgerEntity } from '../records/types'
+import { localTodayKey, normalizeCycleAnchorDate } from './cycleAnchorDate'
 
 const DEFAULT_ID = 'default-ledger'
 export const ledgerItems = ref<LedgerEntity[]>([])
@@ -12,17 +13,20 @@ let loaded = false
 export async function loadLedgers() {
   if (!loaded) {
     if (typeof indexedDB === 'undefined') {
-      ledgerItems.value = [{ id: DEFAULT_ID, name: '日常账本', icon: '📒', createdAt: new Date().toISOString() }]
+      ledgerItems.value = [{ id: DEFAULT_ID, name: '日常账本', icon: '📒', cycleAnchorDate: normalizeCycleAnchorDate(undefined), createdAt: new Date().toISOString() }]
       loaded = true
       return ledgerItems.value
     }
     let saved = await db.ledgers.orderBy('createdAt').toArray()
     if (!saved.length) {
-      const ledger = { id: DEFAULT_ID, name: '日常账本', icon: '📒', createdAt: new Date().toISOString() }
+      const ledger = { id: DEFAULT_ID, name: '日常账本', icon: '📒', cycleAnchorDate: normalizeCycleAnchorDate(undefined), createdAt: new Date().toISOString() }
       await db.ledgers.add(ledger); saved = [ledger]
       await db.records.filter((record) => !record.ledgerId).modify({ ledgerId: DEFAULT_ID })
     }
-    ledgerItems.value = saved; loaded = true
+    ledgerItems.value = saved.map((ledger) => {
+      const { cycleStartDay, ...rest } = ledger
+      return { ...rest, cycleAnchorDate: normalizeCycleAnchorDate(ledger.cycleAnchorDate, cycleStartDay) }
+    }); loaded = true
   }
   if (!ledgerItems.value.some((item) => item.id === activeLedgerId.value)) setActiveLedger(ledgerItems.value[0].id)
   return ledgerItems.value
@@ -33,21 +37,22 @@ export function setActiveLedger(id: string) {
   activeLedgerId.value = id; localStorage.setItem('money-active-ledger', id)
 }
 
-export async function addLedger(name: string, icon = '📒') {
+export async function addLedger(name: string, icon = '📒', cycleAnchorDate = `${localTodayKey().slice(0, 7)}-01`) {
   const normalized = name.trim().slice(0, 12)
   if (!normalized) throw new Error('请输入账本名称')
   if (ledgerItems.value.some((item) => item.name === normalized)) throw new Error('账本名称已存在')
-  const ledger = { id: `ledger-${createId()}`, name: normalized, icon, createdAt: new Date().toISOString() }
+  const ledger = { id: `ledger-${createId()}`, name: normalized, icon, cycleAnchorDate: normalizeCycleAnchorDate(cycleAnchorDate), createdAt: new Date().toISOString() }
   await db.ledgers.add(ledger); ledgerItems.value = [...ledgerItems.value, ledger]; setActiveLedger(ledger.id)
   return ledger
 }
 
-export async function updateLedger(id: string, name: string, icon: string) {
+export async function updateLedger(id: string, name: string, icon: string, cycleAnchorDate?: string) {
   const normalized = name.trim().slice(0, 12)
   if (!normalized) throw new Error('请输入账本名称')
   const ledger = ledgerItems.value.find((item) => item.id === id)
   if (!ledger) throw new Error('账本不存在')
-  const updated = { ...ledger, name: normalized, icon }
+  const { cycleStartDay: _legacyStartDay, ...current } = ledger
+  const updated = { ...current, name: normalized, icon, cycleAnchorDate: normalizeCycleAnchorDate(cycleAnchorDate ?? ledger.cycleAnchorDate, _legacyStartDay) }
   await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
 }
 

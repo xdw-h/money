@@ -1,17 +1,62 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { db } from '../shared/db/database'
 import { exportBackup, importBackup } from '../features/backup/backupService'
 import { formatDateTime } from '../shared/format/date'
 import { appThemes, applyTheme, getThemeId, type ThemeId } from '../features/theme/themeStore'
 import { activeLedgerId, addLedger, deleteLedger, ledgerItems, loadLedgers, setActiveLedger, updateLedger } from '../features/ledgers/ledgerStore'
+import { formatBytes, getStorageProtectionStatus, requestStorageProtection, type StorageProtectionStatus } from '../features/storage/storageProtection'
+import EmojiPickerField from '../shared/components/EmojiPickerField.vue'
+import AppLockSetupSheet from '../features/appLock/AppLockSetupSheet.vue'
+import { getAppLockType } from '../features/appLock/appLockStore'
+import ReleaseNotesSheet from '../features/releaseNotes/ReleaseNotesSheet.vue'
 
 const message = ref(''); const error = ref(''); const busy = ref(false)
 const selectedTheme = ref<ThemeId>(getThemeId())
+const storageStatus = ref<StorageProtectionStatus>({ supported: false, persisted: false, usage: null, quota: null })
+const storageBusy = ref(false)
+const storageFeedback = ref('')
+const storagePercent = computed(() => storageStatus.value.quota && storageStatus.value.usage !== null
+  ? Math.min(100, Math.max(0, storageStatus.value.usage / storageStatus.value.quota * 100))
+  : 0)
+const storagePercentLabel = computed(() => storagePercent.value > 0 && storagePercent.value < 0.1
+  ? '<0.1%'
+  : `${Number(storagePercent.value.toFixed(1))}%`)
+const storageBarWidth = computed(() => storagePercent.value > 0 ? Math.max(1.5, storagePercent.value) : 0)
+const ledgerEditor = ref<{ id?: string; name: string; icon: string } | null>(null)
+const showAppLock = ref(false)
+const showReleaseNotes = ref(false)
+const appLockType = ref(getAppLockType())
+const refreshAppLockType = () => { appLockType.value = getAppLockType() }
 function selectTheme(id: ThemeId) { selectedTheme.value = id; applyTheme(id) }
-onMounted(loadLedgers)
-async function createLedger() { const name = prompt('新账本名称'); if (!name) return; try { await addLedger(name) } catch (reason) { error.value = reason instanceof Error ? reason.message : '新增账本失败' } }
-async function renameLedger(id: string, current: string, icon: string) { const name = prompt('修改账本名称', current); if (!name) return; try { await updateLedger(id, name, icon) } catch (reason) { error.value = reason instanceof Error ? reason.message : '修改账本失败' } }
+async function refreshStorageProtection(requestIfNeeded = false, announce = false) {
+  storageBusy.value = true
+  try {
+    const current = await getStorageProtectionStatus()
+    storageStatus.value = requestIfNeeded && current.supported && !current.persisted
+      ? await requestStorageProtection()
+      : current
+    if (announce) storageFeedback.value = storageStatus.value.persisted
+      ? '存储保护已开启'
+      : storageStatus.value.error || '浏览器暂未批准，请继续定期导出备份'
+  } finally {
+    storageBusy.value = false
+  }
+}
+onMounted(() => { void loadLedgers(); void refreshStorageProtection(true) })
+function createLedger() { ledgerEditor.value = { name: '', icon: '📒' } }
+function renameLedger(id: string, current: string, icon: string) { ledgerEditor.value = { id, name: current, icon } }
+async function saveLedger() {
+  if (!ledgerEditor.value?.name.trim()) { error.value = '请输入账本名称'; return }
+  error.value = ''
+  try {
+    const draft = ledgerEditor.value
+    if (draft.id) await updateLedger(draft.id, draft.name, draft.icon)
+    else await addLedger(draft.name, draft.icon)
+    ledgerEditor.value = null
+  } catch (reason) { error.value = reason instanceof Error ? reason.message : '保存账本失败' }
+}
+async function changeCycleAnchorDate(id: string, name: string, icon: string, value: string) { try { await updateLedger(id, name, icon, value); message.value = `“${name}”账期锚点已设为${value}` } catch (reason) { error.value = reason instanceof Error ? reason.message : '修改账期失败' } }
 async function removeLedger(id: string, name: string) { if (!confirm(`删除“${name}”及其中全部账目和图片？此操作无法撤销。`)) return; try { await deleteLedger(id) } catch (reason) { error.value = reason instanceof Error ? reason.message : '删除账本失败' } }
 async function downloadBackup() {
   busy.value = true; error.value = ''
@@ -36,8 +81,13 @@ async function clearAll() {
 </script>
 <template>
   <main class="page settings-page"><header><h1>设置</h1><small>管理应用与本地数据</small></header>
-    <h2>多账本</h2><section class="ledger-list"><div v-for="ledger in ledgerItems" :key="ledger.id" :class="{active:activeLedgerId===ledger.id}"><button class="ledger-main" type="button" @click="setActiveLedger(ledger.id)"><i>{{ ledger.icon }}</i><span><b>{{ ledger.name }}</b><small>{{ activeLedgerId===ledger.id ? '当前账本 · 收支独立统计' : '切换到此账本' }}</small></span><em>{{ activeLedgerId===ledger.id ? '✓' : '›' }}</em></button><button type="button" aria-label="修改账本" @click="renameLedger(ledger.id,ledger.name,ledger.icon)">修改</button><button class="remove-ledger" type="button" aria-label="删除账本" @click="removeLedger(ledger.id,ledger.name)">删除</button></div><button class="add-ledger" type="button" @click="createLedger">＋ 新增账本</button></section>
+    <h2>多账本</h2><section class="ledger-list"><div v-for="ledger in ledgerItems" :key="ledger.id" :class="{active:activeLedgerId===ledger.id}"><button class="ledger-main" type="button" @click="setActiveLedger(ledger.id)"><i>{{ ledger.icon }}</i><span><b>{{ ledger.name }}</b><small>{{ activeLedgerId===ledger.id ? '当前账本' : '切换到账本' }} · 每月{{ Number(ledger.cycleAnchorDate.slice(8,10)) }}日起算</small></span><em>{{ activeLedgerId===ledger.id ? '✓' : '›' }}</em></button><label class="cycle-start"><span>账期锚点</span><input type="date" :value="ledger.cycleAnchorDate" :aria-label="`${ledger.name}账期锚点日期`" @change="changeCycleAnchorDate(ledger.id,ledger.name,ledger.icon,($event.target as HTMLInputElement).value)" /></label><button type="button" aria-label="修改账本" @click="renameLedger(ledger.id,ledger.name,ledger.icon)">修改</button><button class="remove-ledger" type="button" aria-label="删除账本" @click="removeLedger(ledger.id,ledger.name)">删除</button></div><button class="add-ledger" type="button" @click="createLedger">＋ 新增账本</button></section>
+    <div v-if="ledgerEditor" class="ledger-dialog-overlay" @click.self="ledgerEditor = null"><section class="ledger-dialog" role="dialog" aria-modal="true" :aria-label="ledgerEditor.id ? '修改账本' : '新增账本'"><header><strong>{{ ledgerEditor.id ? '修改账本' : '新增账本' }}</strong><button type="button" aria-label="关闭账本编辑" @click="ledgerEditor = null">×</button></header><input v-model="ledgerEditor.name" maxlength="12" aria-label="账本名称" placeholder="账本名称" /><EmojiPickerField v-model="ledgerEditor.icon" label="账本图标" /><button class="ledger-save" type="button" aria-label="保存账本" @click="saveLedger">保存</button></section></div>
     <h2>主题风格</h2><section class="theme-picker" aria-label="主题风格"><button v-for="theme in appThemes" :key="theme.id" type="button" :aria-pressed="selectedTheme === theme.id" @click="selectTheme(theme.id)"><span class="theme-swatches"><i v-for="color in theme.colors" :key="color" :style="{ background: color }" /></span><b>{{ theme.name }}</b><small>{{ theme.description }}</small><em>✓</em></button></section>
+    <h2>隐私与关于</h2><section class="setting-list"><button type="button" aria-label="应用锁设置" @click="showAppLock = true"><i class="purple">⌾</i><span><b>应用锁 · {{ appLockType ? '已开启' : '未开启' }}</b><small>{{ appLockType === 'pin' ? '6位数字密码' : appLockType === 'pattern' ? '九宫格手势' : '保护本地账目隐私' }}</small></span><em>›</em></button><button type="button" aria-label="查看版本公告" @click="showReleaseNotes = true"><i class="blue">i</i><span><b>版本公告</b><small>查看每次发布的更新内容</small></span><em>›</em></button></section>
+    <AppLockSetupSheet v-if="showAppLock" @close="showAppLock = false" @saved="refreshAppLockType" />
+    <ReleaseNotesSheet v-if="showReleaseNotes" @close="showReleaseNotes = false" />
+    <h2>本地存储</h2><section class="setting-list storage-protection"><div><i class="blue">▣</i><span><b>存储保护 · {{ storageStatus.supported ? (storageStatus.persisted ? '已保护' : '未保护') : '不支持' }}</b><small>已用 {{ formatBytes(storageStatus.usage) }} / 配额 {{ formatBytes(storageStatus.quota) }}</small><span class="storage-meter" role="progressbar" aria-label="本地存储使用率" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Number(storagePercent.toFixed(2))"><i :style="{ width: `${storageBarWidth}%` }" /><small>{{ storagePercentLabel }}</small></span><small v-if="storageStatus.error">{{ storageStatus.error }}</small><small v-else>保护可降低空间紧张时被自动清理的风险，但不能替代备份</small></span><em v-if="storageStatus.persisted">✓</em></div><button v-if="storageStatus.supported && !storageStatus.persisted" type="button" aria-label="重新申请存储保护" :disabled="storageBusy" @click="refreshStorageProtection(true, true)"><i class="purple">↻</i><span><b>{{ storageBusy ? '正在申请…' : '重新申请保护' }}</b><small>{{ storageFeedback || '是否批准由当前浏览器决定' }}</small></span><em>›</em></button></section>
     <h2>备份与恢复</h2><section class="setting-list actions"><button :disabled="busy" @click="downloadBackup"><i class="orange">⇧</i><span><b>导出 ZIP 备份</b><small>保存全部账目和图片</small></span><em>›</em></button><label><i class="purple">⇩</i><span><b>导入 ZIP 备份</b><small>从已有备份恢复数据</small></span><em>›</em><input type="file" accept=".zip,application/zip" @change="restore" /></label></section>
     <h2>数据管理</h2><section class="setting-list"><button class="danger" @click="clearAll"><i>⌫</i><span><b>清空全部数据</b><small>此操作无法撤销</small></span><em>›</em></button></section>
     <p v-if="message" class="success" role="status">{{ message }}</p><p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -46,5 +96,7 @@ async function clearAll() {
 <style scoped>
 .settings-page { display:grid;gap:14px }.settings-page h1,.settings-page h2 { margin:0 }.settings-page header h1{font-size:22px}.settings-page header small{color:var(--muted);font-size:11px}.settings-page h2{margin-top:6px;font-size:13px}.setting-list{overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--surface);box-shadow:0 7px 24px rgba(87,57,39,.05)}.setting-list>div,.setting-list button,.setting-list label{position:relative;width:100%;min-height:64px;padding:10px 13px;display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:10px;border:0;border-bottom:1px solid var(--border);background:transparent;text-align:left}.setting-list>*:last-child{border-bottom:0!important}.setting-list i{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:#edf6ea;color:var(--income);font-style:normal}.setting-list .blue{background:#edf4f9;color:var(--blue)}.setting-list .orange{background:#fff3e4;color:var(--accent)}.setting-list .purple{background:#f1edf8;color:var(--lavender)}.setting-list span{display:grid;gap:3px}.setting-list b{font-size:13px}.setting-list small{font-size:10px;color:var(--muted)}.setting-list em{font-style:normal;color:#c9beb8}.setting-list input{position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer}.setting-list .danger{color:var(--expense)}.setting-list .danger i{background:#fff0ed;color:var(--expense)}.success{color:#16815a;font-size:12px}.error{color:var(--expense);font-size:12px}
 .theme-picker{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;overflow:hidden}.theme-picker button{position:relative;width:100%;min-width:0;max-width:100%;padding:12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px;overflow:hidden;border:1px solid var(--border);border-radius:16px;background:var(--surface);text-align:left;box-shadow:0 5px 16px rgba(var(--shadow),.05)}.theme-picker button[aria-pressed=true]{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}.theme-swatches{grid-column:1/-1;display:flex;min-width:0;margin-bottom:4px}.theme-swatches i{width:25px;height:25px;flex:0 0 25px;margin-right:-5px;border:2px solid var(--surface);border-radius:50%}.theme-picker b{min-width:0;overflow:hidden;font-size:12px;white-space:nowrap;text-overflow:ellipsis}.theme-picker small{grid-column:1/-1;min-width:0;overflow:hidden;color:var(--muted);font-size:9px;white-space:nowrap;text-overflow:ellipsis}.theme-picker em{grid-column:2;grid-row:2;width:19px;height:19px;display:grid;place-items:center;border-radius:50%;background:var(--primary);color:white;font-size:10px;font-style:normal;opacity:0}.theme-picker button[aria-pressed=true] em{opacity:1}
-.ledger-list{overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--surface)}.ledger-list>div{display:grid;grid-template-columns:1fr auto auto;align-items:center;border-bottom:1px solid var(--border)}.ledger-list>div.active{background:var(--primary-soft)}.ledger-list button{border:0;background:transparent}.ledger-main{min-height:64px;padding:9px 12px;display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:9px;text-align:left}.ledger-main i{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:var(--surface);font-style:normal}.ledger-main span{display:grid;gap:2px}.ledger-main small{color:var(--muted);font-size:9px}.ledger-main em{color:var(--primary);font-style:normal}.ledger-list>div>button:not(.ledger-main){padding:6px;color:var(--muted);font-size:10px}.ledger-list>div>.remove-ledger{padding-right:12px;color:var(--expense)}.add-ledger{width:100%;min-height:48px;color:var(--primary);font-size:12px;font-weight:700}
+.ledger-list{overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--surface)}.ledger-list>div{display:grid;grid-template-columns:1fr auto auto;align-items:center;border-bottom:1px solid var(--border)}.ledger-list>div.active{background:var(--primary-soft)}.ledger-list button{border:0;background:transparent}.ledger-main{grid-column:1/-1;min-height:64px;padding:9px 12px;display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:9px;text-align:left}.ledger-main i{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:var(--surface);font-style:normal}.ledger-main span{display:grid;gap:2px}.ledger-main small{color:var(--muted);font-size:9px}.ledger-main em{color:var(--primary);font-style:normal}.cycle-start{padding:7px 12px;display:flex;align-items:center;gap:6px;color:var(--muted);font-size:10px}.cycle-start input{padding:5px 7px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--ink);font-size:10px}.ledger-list>div>button:not(.ledger-main){padding:6px;color:var(--muted);font-size:10px}.ledger-list>div>.remove-ledger{padding-right:12px;color:var(--expense)}.add-ledger{width:100%;min-height:48px;color:var(--primary);font-size:12px;font-weight:700}
+.ledger-dialog-overlay{position:fixed;z-index:110;inset:0;display:flex;align-items:flex-end;background:rgba(48,42,39,.45);backdrop-filter:blur(2px)}.ledger-dialog{width:min(100%,430px);margin:0 auto;padding:18px 18px calc(20px + var(--safe-bottom));display:grid;gap:12px;border-radius:28px 28px 0 0;background:var(--surface);box-shadow:0 -16px 45px rgba(42,31,25,.2)}.ledger-dialog header{display:flex;align-items:center;justify-content:space-between}.ledger-dialog header strong{font-size:17px}.ledger-dialog header button{width:34px;height:34px;border:0;border-radius:50%;background:var(--surface-soft);color:var(--muted);font-size:21px}.ledger-dialog>input{min-height:44px;padding:0 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-soft);color:var(--text)}.ledger-save{min-height:44px;border:0;border-radius:12px;background:var(--primary);color:white;font-weight:700}
+.storage-meter{position:relative!important;height:9px!important;margin:3px 38px 2px 0!important;display:block!important;overflow:visible!important;border-radius:999px;background:var(--primary-soft)}.storage-meter>i{height:100%;min-width:0;border-radius:inherit;background:linear-gradient(90deg,var(--primary),color-mix(in srgb,var(--primary) 65%,white));box-shadow:0 0 7px color-mix(in srgb,var(--primary) 25%,transparent)}.storage-meter>small{position:absolute;left:calc(100% + 6px);top:50%;transform:translateY(-50%);color:var(--primary);font-size:9px;font-weight:700;white-space:nowrap}
 </style>

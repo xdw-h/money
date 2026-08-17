@@ -5,7 +5,7 @@ import ImageUploader from '../../src/features/images/ImageUploader.vue'
 describe('ImageUploader', () => {
   beforeEach(() => {
     vi.stubGlobal('URL', {
-      createObjectURL: vi.fn((file: File) => `blob:${file.name}`),
+      createObjectURL: vi.fn((file: File | Blob) => `blob:${(file as File).name ?? 'database-image'}`),
       revokeObjectURL: vi.fn(),
     })
   })
@@ -40,5 +40,14 @@ describe('ImageUploader', () => {
 
     expect(wrapper.findAll('[data-testid=image-preview]')).toHaveLength(0)
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:one.jpg')
+  })
+
+  it('shows an existing database image and emits retained ids when removed', async () => {
+    const wrapper = mount(ImageUploader, {
+      props: { existingImages: [{ id: 'image-1', name: 'receipt.jpg', thumbnailBlob: new Blob(['thumb']) }] },
+    })
+    expect(wrapper.get('img[alt="receipt.jpg"]').attributes('src')).toBe('blob:database-image')
+    await wrapper.get('[aria-label="删除 receipt.jpg"]').trigger('click')
+    expect(wrapper.emitted('update:retainedImageIds')?.[0]?.[0]).toEqual([])
   })
 })

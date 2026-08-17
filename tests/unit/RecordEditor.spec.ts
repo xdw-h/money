@@ -5,6 +5,11 @@ import RecordEditor from '../../src/features/records/RecordEditor.vue'
 describe('RecordEditor', () => {
   it('enters cents with the keypad and emits a complete draft', async () => {
     const wrapper = mount(RecordEditor, { global: { stubs: { ImageUploader: true } } })
+    expect(wrapper.get('.entry-tools').find('.note-trigger').exists()).toBe(true)
+    expect(wrapper.get('.entry-tools').find('input[type="datetime-local"]').exists()).toBe(true)
+    expect(wrapper.get('.entry-tools').find('image-uploader-stub').exists()).toBe(true)
+    await wrapper.get('.note-trigger').trigger('click')
+    expect(wrapper.get('textarea[aria-label="备注"]')).toBeTruthy()
     await wrapper.get('[data-key="2"]').trigger('click')
     await wrapper.get('[data-key="4"]').trigger('click')
     await wrapper.get('[data-key="0"]').trigger('click')
@@ -31,6 +36,15 @@ describe('RecordEditor', () => {
       global: { stubs: { ImageUploader: true } },
     })
     expect(wrapper.get('[data-testid="amount"]').text()).toContain('¥128.00')
-    expect(wrapper.get<HTMLTextAreaElement>('textarea').element.value).toBe('晚餐')
+    expect(wrapper.get('.note-trigger').text()).toContain('晚餐')
+  })
+
+  it('keeps existing image ids when saving an edited record', async () => {
+    const wrapper = mount(RecordEditor, {
+      props: { initial: { type: 'expense', amount: 12800, categoryId: 'food', occurredAt: '2026-08-15T08:30:00.000Z', note: '晚餐', imageIds: ['image-1'] } },
+      global: { stubs: { ImageUploader: true } },
+    })
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('save')?.[0]?.[0]).toMatchObject({ imageIds: ['image-1'] })
   })
 })

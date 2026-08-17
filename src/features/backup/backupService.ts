@@ -2,6 +2,7 @@ import JSZip from 'jszip'
 import type { BookkeepingDatabase } from '../../shared/db/database'
 import { imageExtension } from '../images/imageService'
 import type { BackupData, BackupManifest } from './types'
+import { normalizeCycleAnchorDate } from '../ledgers/cycleAnchorDate'
 
 function blobBytes(blob: Blob): Promise<Uint8Array> {
   if (typeof (blob as Blob & { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer === 'function') {
@@ -59,8 +60,11 @@ export async function importBackup(file: Blob, database: BookkeepingDatabase) {
   }))
   let imported = 0; let skipped = 0; let imageCount = 0
   await database.transaction('rw', database.records, database.images, database.categories, database.ledgers, async () => {
-    const restoredLedgers = data.ledgers?.length ? data.ledgers : [{ id: 'default-ledger', name: '日常账本', icon: '📒', createdAt: new Date().toISOString() }]
-    for (const ledger of restoredLedgers) await database.ledgers.put(ledger)
+    const restoredLedgers = data.ledgers?.length ? data.ledgers : [{ id: 'default-ledger', name: '日常账本', icon: '📒', cycleAnchorDate: normalizeCycleAnchorDate(undefined), createdAt: new Date().toISOString() }]
+    for (const ledger of restoredLedgers) {
+      const { cycleStartDay, ...restored } = ledger
+      await database.ledgers.put({ ...restored, cycleAnchorDate: normalizeCycleAnchorDate(ledger.cycleAnchorDate, cycleStartDay) })
+    }
     for (const category of data.categories) await database.categories.put(category)
     for (const record of data.records) {
       if (await database.records.get(record.id)) { skipped++; continue }
