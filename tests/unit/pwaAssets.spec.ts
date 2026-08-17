@@ -32,4 +32,9 @@ describe('PWA assets', () => {
     expect(main).toContain('startPwaUpdateChecks')
     expect(app).toContain('发现新版本')
   })
+
+  it('builds production assets under the GitHub Pages repository path', async () => {
+    const viteConfig = await readFile('vite.config.ts', 'utf8')
+    expect(viteConfig).toContain("command === 'build' ? '/money/' : '/'")
+  })
 })
