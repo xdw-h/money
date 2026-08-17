@@ -20,3 +20,10 @@ export function normalizeCycleAnchorDate(value: unknown, legacyStartDay: unknown
   const day = Math.min(normalizeDay(legacyStartDay), new Date(year, month, 0).getDate())
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
+
+export function normalizeCycleStartDates(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(Object.entries(value).filter(([month, date]) =>
+    /^\d{4}-\d{2}$/.test(month) && isCalendarDate(date) && date.startsWith(`${month}-`),
+  )) as Record<string, string>
+}

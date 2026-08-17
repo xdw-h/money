@@ -2,7 +2,7 @@ import type { RecordEntity, RecordType } from '../records/types'
 import { billingCycleRange } from '../../shared/format/date'
 
 export type PeriodMode = 'month' | 'year'
-interface PeriodOptions { mode: PeriodMode; anchor: string; timeZone?: string; cycleAnchorDate?: string }
+interface PeriodOptions { mode: PeriodMode; anchor: string; timeZone?: string; cycleAnchorDate?: string; cycleStartDates?: Record<string, string> }
 interface TrendOptions extends PeriodOptions { type: RecordType }
 
 function dateParts(iso: string, timeZone?: string) {
@@ -25,7 +25,7 @@ function inPeriod(record: RecordEntity, options: PeriodOptions) {
   const date = dateParts(record.occurredAt, options.timeZone)
   const anchor = anchorParts(options.anchor)
   if (options.mode === 'year') return date.year === anchor.year
-  const range = billingCycleRange(options.anchor, options.cycleAnchorDate)
+  const range = billingCycleRange(options.anchor, options.cycleAnchorDate, options.cycleStartDates)
   const key = dateKey(date)
   return key >= range.start && key < range.endExclusive
 }
@@ -63,7 +63,7 @@ export function categoryRanking(records: RecordEntity[], options: TrendOptions) 
 
 export function trendSeries(records: RecordEntity[], options: TrendOptions) {
   const anchor = anchorParts(options.anchor)
-  const range = billingCycleRange(options.anchor, options.cycleAnchorDate)
+  const range = billingCycleRange(options.anchor, options.cycleAnchorDate, options.cycleStartDates)
   const startTime = Date.parse(`${range.start}T00:00:00Z`); const endTime = Date.parse(`${range.endExclusive}T00:00:00Z`)
   const length = options.mode === 'year' ? 12 : Math.round((endTime - startTime) / 86400000)
   const dateKeys = options.mode === 'year' ? [] : Array.from({ length }, (_, index) => {

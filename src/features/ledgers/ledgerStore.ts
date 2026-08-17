@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { db } from '../../shared/db/database'
 import { createId } from '../../shared/id/createId'
 import type { LedgerEntity } from '../records/types'
-import { localTodayKey, normalizeCycleAnchorDate } from './cycleAnchorDate'
+import { localTodayKey, normalizeCycleAnchorDate, normalizeCycleStartDates } from './cycleAnchorDate'
 
 const DEFAULT_ID = 'default-ledger'
 export const ledgerItems = ref<LedgerEntity[]>([])
@@ -25,7 +25,7 @@ export async function loadLedgers() {
     }
     ledgerItems.value = saved.map((ledger) => {
       const { cycleStartDay, ...rest } = ledger
-      return { ...rest, cycleAnchorDate: normalizeCycleAnchorDate(ledger.cycleAnchorDate, cycleStartDay) }
+      return { ...rest, cycleAnchorDate: normalizeCycleAnchorDate(ledger.cycleAnchorDate, cycleStartDay), cycleStartDates: normalizeCycleStartDates(ledger.cycleStartDates) }
     }); loaded = true
   }
   if (!ledgerItems.value.some((item) => item.id === activeLedgerId.value)) setActiveLedger(ledgerItems.value[0].id)
@@ -53,6 +53,21 @@ export async function updateLedger(id: string, name: string, icon: string, cycle
   if (!ledger) throw new Error('账本不存在')
   const { cycleStartDay: _legacyStartDay, ...current } = ledger
   const updated = { ...current, name: normalized, icon, cycleAnchorDate: normalizeCycleAnchorDate(cycleAnchorDate ?? ledger.cycleAnchorDate, _legacyStartDay) }
+  await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
+}
+
+export async function setLedgerCycleStartDate(id: string, month: string, date?: string) {
+  const ledger = ledgerItems.value.find((item) => item.id === id)
+  if (!ledger) throw new Error('账本不存在')
+  const updated = { ...ledger, cycleStartDates: normalizeCycleStartDates({ ...ledger.cycleStartDates, [month]: date }) }
+  await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
+}
+
+export async function clearLedgerCycleStartDate(id: string, month: string) {
+  const ledger = ledgerItems.value.find((item) => item.id === id)
+  if (!ledger) throw new Error('账本不存在')
+  const cycleStartDates = { ...ledger.cycleStartDates }; delete cycleStartDates[month]
+  const updated = { ...ledger, cycleStartDates }
   await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
 }
 

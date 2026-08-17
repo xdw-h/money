@@ -7,6 +7,11 @@ describe('money formatter', () => {
     expect(formatMoney(24000)).toBe('¥240.00')
     expect(formatMoney(300000)).toBe('¥3,000.00')
   })
+  it('supports a different start date for each month', () => {
+    const overrides = { '2026-08': '2026-08-10', '2026-09': '2026-09-20' }
+    expect(billingCycleRange('2026-09-05', '2025-01-01', overrides)).toEqual({ start: '2026-08-10', endExclusive: '2026-09-20', endInclusive: '2026-09-19' })
+    expect(billingCycleRange('2026-09-21', '2025-01-01', overrides)).toEqual({ start: '2026-09-20', endExclusive: '2026-10-01', endInclusive: '2026-09-30' })
+  })
 })
 
 describe('date formatter', () => {

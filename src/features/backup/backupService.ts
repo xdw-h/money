@@ -2,7 +2,7 @@ import JSZip from 'jszip'
 import type { BookkeepingDatabase } from '../../shared/db/database'
 import { imageExtension } from '../images/imageService'
 import type { BackupData, BackupManifest } from './types'
-import { normalizeCycleAnchorDate } from '../ledgers/cycleAnchorDate'
+import { normalizeCycleAnchorDate, normalizeCycleStartDates } from '../ledgers/cycleAnchorDate'
 
 function blobBytes(blob: Blob): Promise<Uint8Array> {
   if (typeof (blob as Blob & { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer === 'function') {
@@ -63,7 +63,7 @@ export async function importBackup(file: Blob, database: BookkeepingDatabase) {
     const restoredLedgers = data.ledgers?.length ? data.ledgers : [{ id: 'default-ledger', name: '日常账本', icon: '📒', cycleAnchorDate: normalizeCycleAnchorDate(undefined), createdAt: new Date().toISOString() }]
     for (const ledger of restoredLedgers) {
       const { cycleStartDay, ...restored } = ledger
-      await database.ledgers.put({ ...restored, cycleAnchorDate: normalizeCycleAnchorDate(ledger.cycleAnchorDate, cycleStartDay) })
+      await database.ledgers.put({ ...restored, cycleAnchorDate: normalizeCycleAnchorDate(ledger.cycleAnchorDate, cycleStartDay), cycleStartDates: normalizeCycleStartDates(ledger.cycleStartDates) })
     }
     for (const category of data.categories) await database.categories.put(category)
     for (const record of data.records) {
