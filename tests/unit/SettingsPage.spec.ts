@@ -87,7 +87,7 @@ describe('SettingsPage storage protection', () => {
     expect(wrapper.get('button[aria-label="查看版本公告"]')).toBeTruthy()
   })
 
-  it('keeps a mobile date picker selection visible and persists change-only events', async () => {
+  it('uses the in-app calendar and persists a selected billing date', async () => {
     const { ledgerItems } = await import('../../src/features/ledgers/ledgerStore')
     ledgerItems.value = [{ id: 'ledger-1', name: '日常账本', icon: '📒', cycleAnchorDate: '2026-08-01', createdAt: '2026-08-01T00:00:00.000Z' }]
     ledgerMocks.setCycle.mockReset().mockResolvedValue(undefined)
@@ -95,8 +95,11 @@ describe('SettingsPage storage protection', () => {
     await flushPromises()
     await wrapper.get('.ledger-actions button').trigger('click')
     const input = wrapper.get('input[aria-label="日常账本2026-08起始日期"]')
-    ;(input.element as HTMLInputElement).value = '2026-08-20'
-    await input.trigger('change')
+    await input.trigger('click')
+    const day = wrapper.findAll('.days button').find((button) => button.text() === '20')
+    expect(day).toBeTruthy()
+    await day!.trigger('click')
+    await wrapper.get('.date-picker-sheet .confirm').trigger('click')
     await flushPromises()
 
     expect(ledgerMocks.setCycle).toHaveBeenCalledWith('ledger-1', '2026-08', '2026-08-20')

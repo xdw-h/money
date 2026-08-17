@@ -10,6 +10,7 @@ import EmojiPickerField from '../shared/components/EmojiPickerField.vue'
 import AppLockSetupSheet from '../features/appLock/AppLockSetupSheet.vue'
 import { getAppLockType } from '../features/appLock/appLockStore'
 import ReleaseNotesSheet from '../features/releaseNotes/ReleaseNotesSheet.vue'
+import DatePickerSheet from '../shared/components/DatePickerSheet.vue'
 import { useBodyScrollLock } from '../shared/ui/useBodyScrollLock'
 
 const message = ref(''); const error = ref(''); const busy = ref(false)
@@ -31,6 +32,7 @@ const appLockType = ref(getAppLockType())
 const cycleMonths = ref<Record<string, string>>({})
 const cycleDateDrafts = ref<Record<string, string>>({})
 const editingCycleLedgerId = ref<string | null>(null)
+const datePicker = ref<{ kind: 'anchor' | 'start' | 'end'; value: string; min?: string; title: string } | null>(null)
 const editingCycleLedger = computed(() => ledgerItems.value.find((item) => item.id === editingCycleLedgerId.value))
 const currentMonth = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 7)
 function selectedCycleMonth(id: string) { return cycleMonths.value[id] || currentMonth }
@@ -50,6 +52,22 @@ function displayMonth(value: string) { const [year, month] = value.split('-').ma
 function forwardDateChange(event: Event) {
   const input = event.target as HTMLInputElement
   if (input?.tagName === 'INPUT' && (input.type === 'date' || input.type === 'month')) input.dispatchEvent(new Event('input', { bubbles: true }))
+}
+function openCustomDatePicker(event: MouseEvent) {
+  const input = event.target as HTMLInputElement
+  if (input?.tagName !== 'INPUT' || input.type !== 'date' || !editingCycleLedger.value) return
+  event.preventDefault(); event.stopPropagation()
+  const label = input.getAttribute('aria-label') || ''
+  const kind = label.includes('终止日期') ? 'end' : label.includes('默认账期') ? 'anchor' : 'start'
+  datePicker.value = { kind, value: input.value, min: kind === 'end' ? cycleStart(editingCycleLedger.value) : undefined, title: kind === 'end' ? '选择该期终止日' : kind === 'anchor' ? '选择默认起始日' : '选择该期起始日' }
+}
+async function applyCustomDate(value: string) {
+  const ledger = editingCycleLedger.value; const picker = datePicker.value
+  if (!ledger || !picker) return
+  datePicker.value = null
+  if (picker.kind === 'anchor') await changeCycleAnchorDate(ledger.id, ledger.name, ledger.icon, value)
+  else if (picker.kind === 'start') await changeMonthlyCycle(ledger.id, ledger.name, selectedCycleMonth(ledger.id), value)
+  else await changeMonthlyCycleEnd(ledger.id, ledger.name, selectedCycleMonth(ledger.id), value)
 }
 function cycleStart(ledger: typeof ledgerItems.value[number]) { const month = selectedCycleMonth(ledger.id); return cycleDateDrafts.value[cycleDraftKey(ledger.id, month, 'start')] || ledger.cycleStartDates?.[month] || defaultCycleDate(month, ledger.cycleAnchorDate) }
 function cycleEnd(ledger: typeof ledgerItems.value[number]) { const month = selectedCycleMonth(ledger.id); return cycleDateDrafts.value[cycleDraftKey(ledger.id, month, 'end')] || ledger.cycleEndDates?.[month] || billingCycleRange(`${month}-31`, ledger.cycleAnchorDate, ledger.cycleStartDates).endInclusive }
@@ -110,10 +128,11 @@ async function clearAll() {
 }
 </script>
 <template>
-  <main class="page settings-page" @change.capture="forwardDateChange"><header><h1>设置</h1><small>管理应用与本地数据</small></header>
+  <main class="page settings-page" @click.capture="openCustomDatePicker" @change.capture="forwardDateChange"><header><h1>设置</h1><small>管理应用与本地数据</small></header>
     <h2>多账本</h2><section class="ledger-list"><div v-for="ledger in ledgerItems" :key="ledger.id" :class="{active:activeLedgerId===ledger.id}"><button class="ledger-main" type="button" @click="setActiveLedger(ledger.id)"><i>{{ ledger.icon }}</i><span><b>{{ ledger.name }}</b><small>{{ activeLedgerId===ledger.id ? '当前账本' : '切换到账本' }} · 默认每月{{ Number(ledger.cycleAnchorDate.slice(8,10)) }}日起算</small></span><em>{{ activeLedgerId===ledger.id ? '✓' : '›' }}</em></button><div class="ledger-actions"><button type="button" @click="editingCycleLedgerId=ledger.id">账期设置</button><button type="button" aria-label="修改账本" @click="renameLedger(ledger.id,ledger.name,ledger.icon)">修改</button><button class="remove-ledger" type="button" aria-label="删除账本" @click="removeLedger(ledger.id,ledger.name)">删除</button></div></div><button class="add-ledger" type="button" @click="createLedger">＋ 新增账本</button></section>
     <div v-if="editingCycleLedger" class="cycle-sheet-overlay" @click.self="editingCycleLedgerId=null"><section class="cycle-sheet" role="dialog" aria-modal="true" :aria-label="`${editingCycleLedger.name}账期设置`"><header><div><strong>{{ editingCycleLedger.icon }} {{ editingCycleLedger.name }}</strong><small>账期设置</small></div><button type="button" aria-label="关闭账期设置" @click="editingCycleLedgerId=null">×</button></header><label class="cycle-field"><span>默认起始日<small>每月 {{ Number(editingCycleLedger.cycleAnchorDate.slice(8,10)) }} 日</small></span><span class="picker-control">{{ displayDate(editingCycleLedger.cycleAnchorDate) }}<input type="date" :value="editingCycleLedger.cycleAnchorDate" :aria-label="`${editingCycleLedger.name}默认账期起始日期`" @input="changeCycleAnchorDate(editingCycleLedger.id,editingCycleLedger.name,editingCycleLedger.icon,($event.target as HTMLInputElement).value)" /></span></label><div class="monthly-cycle"><label class="cycle-field month-field"><span>单独设置月份<small>选择需要自定义的账期</small></span><span class="picker-control">{{ displayMonth(selectedCycleMonth(editingCycleLedger.id)) }}<input type="month" :value="selectedCycleMonth(editingCycleLedger.id)" :aria-label="`${editingCycleLedger.name}选择账期月份`" @input="setSelectedCycleMonth(editingCycleLedger.id,($event.target as HTMLInputElement).value)" /></span></label><label class="cycle-field"><span>该期起始日</span><span class="picker-control">{{ displayDate(cycleStart(editingCycleLedger)) }}<input type="date" :value="cycleStart(editingCycleLedger)" :aria-label="`${editingCycleLedger.name}${selectedCycleMonth(editingCycleLedger.id)}起始日期`" @input="changeMonthlyCycle(editingCycleLedger.id,editingCycleLedger.name,selectedCycleMonth(editingCycleLedger.id),($event.target as HTMLInputElement).value)" /></span></label><label class="cycle-field"><span>该期终止日<small>包含当天</small></span><span class="picker-control">{{ displayDate(cycleEnd(editingCycleLedger)) }}<input type="date" :min="cycleStart(editingCycleLedger)" :value="cycleEnd(editingCycleLedger)" :aria-label="`${editingCycleLedger.name}${selectedCycleMonth(editingCycleLedger.id)}终止日期`" @input="changeMonthlyCycleEnd(editingCycleLedger.id,editingCycleLedger.name,selectedCycleMonth(editingCycleLedger.id),($event.target as HTMLInputElement).value)" /></span></label><div class="cycle-status"><small>{{ editingCycleLedger.cycleStartDates?.[selectedCycleMonth(editingCycleLedger.id)] || editingCycleLedger.cycleEndDates?.[selectedCycleMonth(editingCycleLedger.id)] ? '该月已单独设置' : '当前沿用默认账期' }}</small><button v-if="editingCycleLedger.cycleStartDates?.[selectedCycleMonth(editingCycleLedger.id)] || editingCycleLedger.cycleEndDates?.[selectedCycleMonth(editingCycleLedger.id)]" type="button" @click="resetMonthlyCycle(editingCycleLedger.id,editingCycleLedger.name,selectedCycleMonth(editingCycleLedger.id))">恢复默认</button></div></div></section></div>
     <div v-if="ledgerEditor" class="ledger-dialog-overlay" @click.self="ledgerEditor = null"><section class="ledger-dialog" role="dialog" aria-modal="true" :aria-label="ledgerEditor.id ? '修改账本' : '新增账本'"><header><strong>{{ ledgerEditor.id ? '修改账本' : '新增账本' }}</strong><button type="button" aria-label="关闭账本编辑" @click="ledgerEditor = null">×</button></header><input v-model="ledgerEditor.name" maxlength="12" aria-label="账本名称" placeholder="账本名称" /><EmojiPickerField v-model="ledgerEditor.icon" label="账本图标" /><button class="ledger-save" type="button" aria-label="保存账本" @click="saveLedger">保存</button></section></div>
+    <DatePickerSheet v-if="datePicker" :model-value="datePicker.value" :min="datePicker.min" :title="datePicker.title" @close="datePicker=null" @select="applyCustomDate" />
     <h2>主题风格</h2><section class="theme-picker" aria-label="主题风格"><button v-for="theme in appThemes" :key="theme.id" type="button" :aria-pressed="selectedTheme === theme.id" @click="selectTheme(theme.id)"><span class="theme-swatches"><i v-for="color in theme.colors" :key="color" :style="{ background: color }" /></span><b>{{ theme.name }}</b><small>{{ theme.description }}</small><em>✓</em></button></section>
     <h2>隐私与关于</h2><section class="setting-list"><button type="button" aria-label="应用锁设置" @click="showAppLock = true"><i class="purple">⌾</i><span><b>应用锁 · {{ appLockType ? '已开启' : '未开启' }}</b><small>{{ appLockType === 'pin' ? '6位数字密码' : appLockType === 'pattern' ? '九宫格手势' : '保护本地账目隐私' }}</small></span><em>›</em></button><button type="button" aria-label="查看版本公告" @click="showReleaseNotes = true"><i class="blue">i</i><span><b>版本公告</b><small>查看每次发布的更新内容</small></span><em>›</em></button></section>
     <AppLockSetupSheet v-if="showAppLock" @close="showAppLock = false" @saved="refreshAppLockType" />
