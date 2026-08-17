@@ -10,5 +10,16 @@ describe('EmojiPickerField', () => {
     await wrapper.get('button[aria-label="选择图标 💰"]').trigger('click')
 
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual(['💰'])
+    expect(document.body.style.position).toBe('')
+  })
+
+  it('locks the page behind the icon sheet and restores it when cancelled', async () => {
+    const wrapper = mount(EmojiPickerField, { props: { modelValue: '📒', label: '账本图标' } })
+    await wrapper.get('button[aria-label="选择账本图标"]').trigger('click')
+    expect(document.body.style.position).toBe('fixed')
+    expect(document.body.style.overflow).toBe('hidden')
+    await wrapper.get('.cancel-picker').trigger('click')
+    expect(document.body.style.position).toBe('')
+    expect(document.body.style.overflow).toBe('')
   })
 })
