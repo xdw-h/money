@@ -12,6 +12,8 @@ const props = defineProps<{ busy?: boolean; error?: string; initial?: RecordDraf
 const emit = defineEmits<{ save: [draft: RecordDraft & { files: File[] }]; cancel: [] }>()
 const type = ref<RecordType>('expense')
 const amountText = ref('')
+const pendingOperator = ref<'+' | '-'>()
+const accumulatedAmount = ref(0)
 const categoryId = ref('health')
 const subcategoryId = ref('')
 const note = ref('')
@@ -108,12 +110,32 @@ watch(() => props.initial, (value) => {
 
 function enter(key: string) {
   if (key === '⌫') amountText.value = amountText.value.slice(0, -1)
+  else if (key === '+' || key === '-') {
+    if (amountText.value) resolvePendingCalculation()
+    accumulatedAmount.value = Number(amountText.value || accumulatedAmount.value)
+    pendingOperator.value = key
+    amountText.value = ''
+  }
   else if (key === '.' && !amountText.value.includes('.')) amountText.value = `${amountText.value || '0'}.`
   else if (/^\d$/.test(key)) {
     const decimals = amountText.value.split('.')[1]
     if (decimals?.length === 2 || amountText.value.replace('.', '').length >= 9) return
     amountText.value = amountText.value === '0' ? key : amountText.value + key
   }
+}
+
+function resolvePendingCalculation() {
+  if (!pendingOperator.value || !amountText.value) return
+  const right = Number(amountText.value)
+  const result = pendingOperator.value === '+' ? accumulatedAmount.value + right : accumulatedAmount.value - right
+  amountText.value = String(Math.max(0, Math.round(result * 100) / 100))
+  accumulatedAmount.value = 0
+  pendingOperator.value = undefined
+}
+
+function saveFromKeypad() {
+  resolvePendingCalculation()
+  submit()
 }
 
 function submit() {
@@ -134,7 +156,7 @@ function submit() {
       <button type="button" data-type="income" :aria-pressed="type === 'income'" @click="chooseType('income')">收入</button>
     </div>
     <section class="category-panel"><div class="category-title"><strong>选择分类</strong><small>左右滑动查看更多</small><button type="button" @click="managingParentId = undefined; managingCategories = true; addingCategory = false; categoryError = ''">管理</button></div>
-      <div class="category-grid">
+      <div class="category-grid" :class="{ 'income-grid': type === 'income' }">
       <button v-for="category in visibleCategories" :key="category.id" type="button" :data-category="category.id" :class="{ selected: categoryId === category.id }" @click="chooseCategory(category.id)">
         <span>{{ category.icon }}</span><small>{{ category.name }}</small>
       </button>
@@ -165,8 +187,7 @@ function submit() {
     <div v-if="noteSheetOpen" class="note-overlay" @click.self="noteSheetOpen = false"><section class="note-sheet" role="dialog" aria-modal="true" aria-label="编辑备注"><header><strong>备注</strong><button type="button" aria-label="完成备注编辑" @click="noteSheetOpen = false">完成</button></header><textarea v-model="note" rows="6" autofocus placeholder="记录这笔账的详细信息…" aria-label="备注" /></section></div>
     <p v-if="props.error" class="field-error" role="alert">{{ props.error }}</p>
     <div class="amount-row" aria-live="polite"><small>当前金额</small><strong data-testid="amount">{{ formatMoney(amount) }}</strong></div>
-    <AmountKeypad :disabled="busy" @key="enter" />
-    <button class="save-button" type="submit" :disabled="!amount || busy">{{ busy ? '保存中…' : '保存' }}</button>
+    <AmountKeypad :disabled="busy" :save-disabled="!amount || busy" @key="enter" @save="saveFromKeypad" />
   </form>
 </template>
 
@@ -181,11 +202,11 @@ function submit() {
 .category-grid .add-category span{border:1px dashed #dfd1c8;color:var(--muted);box-shadow:none}.category-dialog{position:fixed;z-index:102;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,430px);max-height:75vh;padding:18px 18px calc(20px + var(--safe-bottom));display:grid;gap:12px;overflow:auto;border:0;border-radius:28px 28px 0 0;background:var(--surface);box-shadow:0 0 0 100vmax rgba(48,42,39,.45),0 -16px 45px rgba(42,31,25,.2)}.category-dialog header{display:flex;align-items:center;justify-content:space-between}.category-dialog header button{width:34px;height:34px;border:0;border-radius:50%;background:#f2ebe6}.category-dialog>input{min-height:42px;padding:0 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-soft)}.icon-library{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}.icon-library button{aspect-ratio:1;padding:0;border:1px solid transparent;border-radius:10px;background:#faf5f0;font-size:18px}.icon-library button.selected{border-color:var(--expense);background:#fff0ed}.category-dialog p{margin:0;color:var(--expense);font-size:11px}.category-confirm{min-height:42px;border:0;border-radius:12px;background:var(--expense);color:white;font-weight:700}
 .category-manage-list{display:grid;max-height:250px;overflow:auto}.category-manage-list>div{min-height:46px;display:grid;grid-template-columns:34px 1fr auto auto;align-items:center;gap:6px;border-bottom:1px solid var(--border)}.category-manage-list i{font-style:normal;font-size:20px}.category-manage-list button{padding:5px 8px;border:0;border-radius:8px;background:#f2ebe6;color:var(--muted);font-size:10px}.category-manage-list .remove{background:#fff0ed;color:var(--expense)}
 .form-card{overflow:hidden;border:1px solid var(--border);border-radius:16px;background:var(--surface)}.note-field,.date-field{min-height:46px;padding:0 13px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);font-size:12px}.date-field{border-bottom:0}.note-field textarea,.date-field input{max-width:70%;margin:0;padding:0;border:0;resize:none;background:transparent;text-align:right;color:var(--muted)}.receipt-card{padding:12px;border:1px solid var(--border);border-radius:16px;background:var(--surface)}.receipt-card>div{display:flex;justify-content:space-between;margin-bottom:10px;font-size:12px}.receipt-card small{color:var(--muted)}
-.field-error { margin: 0; color: var(--expense); }.save-button { min-height: 50px; border: 0; border-radius: 15px; background: var(--expense); color: white; font-size: 16px; font-weight: 750;box-shadow:0 6px 16px rgba(240,123,112,.25) }.save-button:disabled { opacity: .45; }
+.field-error { margin: 0; color: var(--expense); }
 .subcategory-trigger{min-height:38px;padding:5px 11px;border-radius:12px}.subcategory-trigger span{display:flex;align-items:center;gap:7px}.subcategory-trigger small{font-size:9px}.subcategory-trigger strong{font-size:11px}.subcategory-trigger em{font-size:10px}
-.entry-tools{min-height:48px;padding:5px;display:grid;grid-template-columns:minmax(92px,1fr) minmax(112px,1.05fr) minmax(48px,.8fr);align-items:center;gap:5px;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:var(--surface)}.note-trigger,.date-field{min-width:0;height:38px;padding:0 8px;display:flex;align-items:center;gap:5px;overflow:hidden;border:0;border-radius:10px;background:var(--surface-soft);text-align:left}.note-trigger>span,.date-field>span{flex:0 0 auto;color:var(--primary);font-size:15px}.note-trigger small{min-width:0;overflow:hidden;color:var(--muted);font-size:10px;white-space:nowrap;text-overflow:ellipsis}.date-field input{width:100%;min-width:0;margin:0;padding:0;border:0;outline:0;background:transparent;color:var(--muted);font-size:9px}.entry-tools :deep(.image-uploader){min-width:0;overflow:hidden}.entry-tools :deep(.preview-grid){overflow-x:auto;scrollbar-width:none}.entry-tools :deep(.preview-grid::-webkit-scrollbar){display:none}
+.entry-tools{min-height:48px;padding:5px;display:grid;grid-template-columns:minmax(92px,1fr) minmax(112px,1.05fr) minmax(48px,.8fr);align-items:center;gap:5px;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:var(--surface)}.note-trigger,.date-field{min-width:0;min-height:38px;height:38px;padding:0 8px;display:flex;align-items:center;gap:5px;overflow:hidden;border:0;border-radius:10px;background:var(--surface-soft);text-align:left}.note-trigger>span,.date-field>span{flex:0 0 auto;color:var(--primary);font-size:15px}.note-trigger small{min-width:0;overflow:hidden;color:var(--muted);font-size:10px;white-space:nowrap;text-overflow:ellipsis}.date-field input{width:100%;min-width:0;margin:0;padding:0;border:0;outline:0;background:transparent;color:var(--muted);font-size:9px}.entry-tools :deep(.image-uploader){min-width:0;overflow:hidden}.entry-tools :deep(.preview-grid){overflow-x:auto;scrollbar-width:none}.entry-tools :deep(.preview-grid::-webkit-scrollbar){display:none}
 .note-overlay{position:fixed;z-index:115;inset:0;display:flex;align-items:flex-end;background:rgba(48,42,39,.45);backdrop-filter:blur(2px)}.note-sheet{width:min(100%,430px);margin:0 auto;padding:18px 18px calc(20px + var(--safe-bottom));display:grid;gap:12px;border-radius:28px 28px 0 0;background:var(--surface);box-shadow:0 -16px 45px rgba(42,31,25,.2)}.note-sheet header{display:flex;align-items:center;justify-content:space-between}.note-sheet header button{padding:7px 13px;border:0;border-radius:999px;background:var(--primary);color:white}.note-sheet textarea{min-height:150px;padding:12px;border:1px solid var(--border);border-radius:14px;resize:none;background:var(--surface-soft);color:var(--text);font:inherit}
-.field-error{margin:0;font-size:10px}.save-button{min-height:42px;font-size:15px}
-.category-grid{grid-template-rows:repeat(3,minmax(0,1fr))}
+.field-error{margin:0;font-size:10px}
+.category-grid{grid-template-rows:repeat(3,minmax(0,1fr))}.category-grid.income-grid{grid-template-rows:repeat(2,minmax(0,1fr))}
 .date-field{position:relative}.date-field small{min-width:0;overflow:hidden;color:var(--muted);font-size:10px;white-space:nowrap;text-overflow:ellipsis}.date-field input{position:absolute;inset:0;width:100%;height:100%;max-width:none;opacity:0;cursor:pointer}
 </style>

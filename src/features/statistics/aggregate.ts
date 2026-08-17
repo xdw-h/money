@@ -37,6 +37,14 @@ export function summarize(records: RecordEntity[], options: PeriodOptions) {
   return { income, expense, balance: income - expense, count: selected.length }
 }
 
+export function summarizeThroughYear(records: RecordEntity[], options: PeriodOptions) {
+  const selectedYear = anchorParts(options.anchor).year
+  const selected = records.filter((record) => dateParts(record.occurredAt, options.timeZone).year <= selectedYear)
+  const income = selected.filter(({ type }) => type === 'income').reduce((sum, { amount }) => sum + amount, 0)
+  const expense = selected.filter(({ type }) => type === 'expense').reduce((sum, { amount }) => sum + amount, 0)
+  return { income, expense, balance: income - expense, count: selected.length }
+}
+
 export function filterPeriod(records: RecordEntity[], options: TrendOptions) {
   return records.filter((record) => record.type === options.type && inPeriod(record, options))
 }

@@ -1,11 +1,12 @@
 {
   "name": "mobile-bookkeeping-h5",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "node scripts/validate-release-notes.mjs && vue-tsc -b && vite build && node scripts/stamp-service-worker.mjs",
+    "build:pwa-test": "node scripts/validate-release-notes.mjs && vue-tsc -b && vite build --base / && node scripts/stamp-service-worker.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest",
     "test:e2e": "playwright test"

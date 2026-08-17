@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { categoryRanking, filterPeriod, summarize, trendSeries } from '../../src/features/statistics/aggregate'
+import { categoryRanking, filterPeriod, summarize, summarizeThroughYear, trendSeries } from '../../src/features/statistics/aggregate'
 import type { RecordEntity } from '../../src/features/records/types'
 
 const records: RecordEntity[] = [
@@ -28,6 +28,18 @@ describe('statistics aggregation', () => {
 
   it('filters bill details to the selected period and type', () => {
     expect(filterPeriod(records, { type: 'expense', mode: 'month', anchor: '2026-08-15', timeZone: 'Asia/Shanghai' }).map(({ id }) => id)).toEqual(['2'])
+  })
+
+  it('keeps the ledger balance accumulated through the selected year', () => {
+    const yearlyRecords: RecordEntity[] = [
+      { id: 'old-income', type: 'income', amount: 100000000, categoryId: 'salary', occurredAt: '2025-06-01T04:00:00.000Z', note: '', imageIds: [], createdAt: '', updatedAt: '' },
+      { id: 'old-expense', type: 'expense', amount: 50000000, categoryId: 'food', occurredAt: '2025-12-31T15:59:59.000Z', note: '', imageIds: [], createdAt: '', updatedAt: '' },
+      { id: 'selected-income', type: 'income', amount: 20000000, categoryId: 'bonus', occurredAt: '2026-01-01T00:00:00.000Z', note: '', imageIds: [], createdAt: '', updatedAt: '' },
+      { id: 'future-expense', type: 'expense', amount: 30000000, categoryId: 'travel', occurredAt: '2027-01-01T00:00:00.000Z', note: '', imageIds: [], createdAt: '', updatedAt: '' },
+    ]
+
+    expect(summarizeThroughYear(yearlyRecords, { mode: 'year', anchor: '2026-01-01', timeZone: 'Asia/Shanghai' }))
+      .toEqual({ income: 120000000, expense: 50000000, balance: 70000000, count: 3 })
   })
 
   it('uses an inclusive ledger start and exclusive next-cycle start', () => {
