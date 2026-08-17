@@ -32,7 +32,7 @@ vi.mock('../../src/features/ledgers/ledgerStore', async () => {
 })
 
 describe('SettingsPage storage protection', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     ledgerMocks.addLedger.mockReset().mockResolvedValue(undefined)
     ledgerMocks.updateLedger.mockReset().mockResolvedValue(undefined)
     storageMocks.getStatus.mockReset().mockResolvedValue({
@@ -47,6 +47,8 @@ describe('SettingsPage storage protection', () => {
       usage: 2048,
       quota: 8192,
     })
+    const { ledgerItems } = await import('../../src/features/ledgers/ledgerStore')
+    ledgerItems.value = []
   })
 
   it('automatically requests protection and shows quota with a retry action', async () => {
@@ -83,5 +85,21 @@ describe('SettingsPage storage protection', () => {
     await flushPromises()
     expect(wrapper.get('button[aria-label="应用锁设置"]')).toBeTruthy()
     expect(wrapper.get('button[aria-label="查看版本公告"]')).toBeTruthy()
+  })
+
+  it('keeps a mobile date picker selection visible and persists change-only events', async () => {
+    const { ledgerItems } = await import('../../src/features/ledgers/ledgerStore')
+    ledgerItems.value = [{ id: 'ledger-1', name: '日常账本', icon: '📒', cycleAnchorDate: '2026-08-01', createdAt: '2026-08-01T00:00:00.000Z' }]
+    ledgerMocks.setCycle.mockReset().mockResolvedValue(undefined)
+    const wrapper = mount(SettingsPage)
+    await flushPromises()
+    await wrapper.get('.ledger-actions button').trigger('click')
+    const input = wrapper.get('input[aria-label="日常账本2026-08起始日期"]')
+    ;(input.element as HTMLInputElement).value = '2026-08-20'
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(ledgerMocks.setCycle).toHaveBeenCalledWith('ledger-1', '2026-08', '2026-08-20')
+    expect(wrapper.text()).toContain('2026年8月20日')
   })
 })

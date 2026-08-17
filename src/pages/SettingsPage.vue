@@ -29,17 +29,30 @@ const showAppLock = ref(false)
 const showReleaseNotes = ref(false)
 const appLockType = ref(getAppLockType())
 const cycleMonths = ref<Record<string, string>>({})
+const cycleDateDrafts = ref<Record<string, string>>({})
 const editingCycleLedgerId = ref<string | null>(null)
 const editingCycleLedger = computed(() => ledgerItems.value.find((item) => item.id === editingCycleLedgerId.value))
 const currentMonth = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 7)
 function selectedCycleMonth(id: string) { return cycleMonths.value[id] || currentMonth }
 function setSelectedCycleMonth(id: string, month: string) { cycleMonths.value = { ...cycleMonths.value, [id]: month } }
+function cycleDraftKey(id: string, month: string, field: 'start' | 'end') { return `${id}:${month}:${field}` }
+function setCycleDateDraft(id: string, month: string, field: 'start' | 'end', value?: string) {
+  const key = cycleDraftKey(id, month, field)
+  const next = { ...cycleDateDrafts.value }
+  if (value) next[key] = value
+  else delete next[key]
+  cycleDateDrafts.value = next
+}
 function monthLastDate(month: string) { const [year, value] = month.split('-').map(Number); return `${month}-${new Date(year, value, 0).getDate()}` }
 function defaultCycleDate(month: string, anchor: string) { return `${month}-${String(Math.min(Number(anchor.slice(8, 10)) || 1, Number(monthLastDate(month).slice(8, 10)))).padStart(2, '0')}` }
 function displayDate(value: string) { const [year, month, day] = value.split('-').map(Number); return `${year}年${month}月${day}日` }
 function displayMonth(value: string) { const [year, month] = value.split('-').map(Number); return `${year}年${month}月` }
-function cycleStart(ledger: typeof ledgerItems.value[number]) { const month = selectedCycleMonth(ledger.id); return ledger.cycleStartDates?.[month] || defaultCycleDate(month, ledger.cycleAnchorDate) }
-function cycleEnd(ledger: typeof ledgerItems.value[number]) { const month = selectedCycleMonth(ledger.id); return ledger.cycleEndDates?.[month] || billingCycleRange(`${month}-31`, ledger.cycleAnchorDate, ledger.cycleStartDates).endInclusive }
+function forwardDateChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (input?.tagName === 'INPUT' && (input.type === 'date' || input.type === 'month')) input.dispatchEvent(new Event('input', { bubbles: true }))
+}
+function cycleStart(ledger: typeof ledgerItems.value[number]) { const month = selectedCycleMonth(ledger.id); return cycleDateDrafts.value[cycleDraftKey(ledger.id, month, 'start')] || ledger.cycleStartDates?.[month] || defaultCycleDate(month, ledger.cycleAnchorDate) }
+function cycleEnd(ledger: typeof ledgerItems.value[number]) { const month = selectedCycleMonth(ledger.id); return cycleDateDrafts.value[cycleDraftKey(ledger.id, month, 'end')] || ledger.cycleEndDates?.[month] || billingCycleRange(`${month}-31`, ledger.cycleAnchorDate, ledger.cycleStartDates).endInclusive }
 useBodyScrollLock(computed(() => Boolean(editingCycleLedgerId.value || ledgerEditor.value)))
 const refreshAppLockType = () => { appLockType.value = getAppLockType() }
 function selectTheme(id: ThemeId) { selectedTheme.value = id; applyTheme(id) }
@@ -71,8 +84,8 @@ async function saveLedger() {
   } catch (reason) { error.value = reason instanceof Error ? reason.message : '保存账本失败' }
 }
 async function changeCycleAnchorDate(id: string, name: string, icon: string, value: string) { try { await updateLedger(id, name, icon, value); message.value = `“${name}”账期锚点已设为${value}` } catch (reason) { error.value = reason instanceof Error ? reason.message : '修改账期失败' } }
-async function changeMonthlyCycle(id: string, name: string, month: string, value: string) { try { await setLedgerCycleStartDate(id, month, value); message.value = `“${name}”${month}月起始日已设为${value}` } catch (reason) { error.value = reason instanceof Error ? reason.message : '修改当月起始日失败' } }
-async function changeMonthlyCycleEnd(id: string, name: string, month: string, value: string) { try { await setLedgerCycleEndDate(id, month, value); message.value = `“${name}”${month}月终止日已设为${value}` } catch (reason) { error.value = reason instanceof Error ? reason.message : '修改当月终止日失败' } }
+async function changeMonthlyCycle(id: string, name: string, month: string, value: string) { if (!value) return; setCycleDateDraft(id, month, 'start', value); try { await setLedgerCycleStartDate(id, month, value); message.value = `“${name}”${month}月起始日已设为${value}`; error.value = '' } catch (reason) { setCycleDateDraft(id, month, 'start'); error.value = reason instanceof Error ? reason.message : '修改当月起始日失败' } }
+async function changeMonthlyCycleEnd(id: string, name: string, month: string, value: string) { if (!value) return; setCycleDateDraft(id, month, 'end', value); try { await setLedgerCycleEndDate(id, month, value); message.value = `“${name}”${month}月终止日已设为${value}`; error.value = '' } catch (reason) { setCycleDateDraft(id, month, 'end'); error.value = reason instanceof Error ? reason.message : '修改当月终止日失败' } }
 async function resetMonthlyCycle(id: string, name: string, month: string) { try { await clearLedgerCycleStartDate(id, month); await clearLedgerCycleEndDate(id, month); message.value = `“${name}”${month}月账期已恢复默认` } catch (reason) { error.value = reason instanceof Error ? reason.message : '恢复默认失败' } }
 async function removeLedger(id: string, name: string) { if (!confirm(`删除“${name}”及其中全部账目和图片？此操作无法撤销。`)) return; try { await deleteLedger(id) } catch (reason) { error.value = reason instanceof Error ? reason.message : '删除账本失败' } }
 async function downloadBackup() {
@@ -97,7 +110,7 @@ async function clearAll() {
 }
 </script>
 <template>
-  <main class="page settings-page"><header><h1>设置</h1><small>管理应用与本地数据</small></header>
+  <main class="page settings-page" @change.capture="forwardDateChange"><header><h1>设置</h1><small>管理应用与本地数据</small></header>
     <h2>多账本</h2><section class="ledger-list"><div v-for="ledger in ledgerItems" :key="ledger.id" :class="{active:activeLedgerId===ledger.id}"><button class="ledger-main" type="button" @click="setActiveLedger(ledger.id)"><i>{{ ledger.icon }}</i><span><b>{{ ledger.name }}</b><small>{{ activeLedgerId===ledger.id ? '当前账本' : '切换到账本' }} · 默认每月{{ Number(ledger.cycleAnchorDate.slice(8,10)) }}日起算</small></span><em>{{ activeLedgerId===ledger.id ? '✓' : '›' }}</em></button><div class="ledger-actions"><button type="button" @click="editingCycleLedgerId=ledger.id">账期设置</button><button type="button" aria-label="修改账本" @click="renameLedger(ledger.id,ledger.name,ledger.icon)">修改</button><button class="remove-ledger" type="button" aria-label="删除账本" @click="removeLedger(ledger.id,ledger.name)">删除</button></div></div><button class="add-ledger" type="button" @click="createLedger">＋ 新增账本</button></section>
     <div v-if="editingCycleLedger" class="cycle-sheet-overlay" @click.self="editingCycleLedgerId=null"><section class="cycle-sheet" role="dialog" aria-modal="true" :aria-label="`${editingCycleLedger.name}账期设置`"><header><div><strong>{{ editingCycleLedger.icon }} {{ editingCycleLedger.name }}</strong><small>账期设置</small></div><button type="button" aria-label="关闭账期设置" @click="editingCycleLedgerId=null">×</button></header><label class="cycle-field"><span>默认起始日<small>每月 {{ Number(editingCycleLedger.cycleAnchorDate.slice(8,10)) }} 日</small></span><span class="picker-control">{{ displayDate(editingCycleLedger.cycleAnchorDate) }}<input type="date" :value="editingCycleLedger.cycleAnchorDate" :aria-label="`${editingCycleLedger.name}默认账期起始日期`" @input="changeCycleAnchorDate(editingCycleLedger.id,editingCycleLedger.name,editingCycleLedger.icon,($event.target as HTMLInputElement).value)" /></span></label><div class="monthly-cycle"><label class="cycle-field month-field"><span>单独设置月份<small>选择需要自定义的账期</small></span><span class="picker-control">{{ displayMonth(selectedCycleMonth(editingCycleLedger.id)) }}<input type="month" :value="selectedCycleMonth(editingCycleLedger.id)" :aria-label="`${editingCycleLedger.name}选择账期月份`" @input="setSelectedCycleMonth(editingCycleLedger.id,($event.target as HTMLInputElement).value)" /></span></label><label class="cycle-field"><span>该期起始日</span><span class="picker-control">{{ displayDate(cycleStart(editingCycleLedger)) }}<input type="date" :value="cycleStart(editingCycleLedger)" :aria-label="`${editingCycleLedger.name}${selectedCycleMonth(editingCycleLedger.id)}起始日期`" @input="changeMonthlyCycle(editingCycleLedger.id,editingCycleLedger.name,selectedCycleMonth(editingCycleLedger.id),($event.target as HTMLInputElement).value)" /></span></label><label class="cycle-field"><span>该期终止日<small>包含当天</small></span><span class="picker-control">{{ displayDate(cycleEnd(editingCycleLedger)) }}<input type="date" :min="cycleStart(editingCycleLedger)" :value="cycleEnd(editingCycleLedger)" :aria-label="`${editingCycleLedger.name}${selectedCycleMonth(editingCycleLedger.id)}终止日期`" @input="changeMonthlyCycleEnd(editingCycleLedger.id,editingCycleLedger.name,selectedCycleMonth(editingCycleLedger.id),($event.target as HTMLInputElement).value)" /></span></label><div class="cycle-status"><small>{{ editingCycleLedger.cycleStartDates?.[selectedCycleMonth(editingCycleLedger.id)] || editingCycleLedger.cycleEndDates?.[selectedCycleMonth(editingCycleLedger.id)] ? '该月已单独设置' : '当前沿用默认账期' }}</small><button v-if="editingCycleLedger.cycleStartDates?.[selectedCycleMonth(editingCycleLedger.id)] || editingCycleLedger.cycleEndDates?.[selectedCycleMonth(editingCycleLedger.id)]" type="button" @click="resetMonthlyCycle(editingCycleLedger.id,editingCycleLedger.name,selectedCycleMonth(editingCycleLedger.id))">恢复默认</button></div></div></section></div>
     <div v-if="ledgerEditor" class="ledger-dialog-overlay" @click.self="ledgerEditor = null"><section class="ledger-dialog" role="dialog" aria-modal="true" :aria-label="ledgerEditor.id ? '修改账本' : '新增账本'"><header><strong>{{ ledgerEditor.id ? '修改账本' : '新增账本' }}</strong><button type="button" aria-label="关闭账本编辑" @click="ledgerEditor = null">×</button></header><input v-model="ledgerEditor.name" maxlength="12" aria-label="账本名称" placeholder="账本名称" /><EmojiPickerField v-model="ledgerEditor.icon" label="账本图标" /><button class="ledger-save" type="button" aria-label="保存账本" @click="saveLedger">保存</button></section></div>
