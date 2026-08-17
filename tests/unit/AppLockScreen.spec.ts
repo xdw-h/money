@@ -24,10 +24,26 @@ describe('AppLockScreen', () => {
     await vi.waitFor(() => expect(appUnlocked.value).toBe(true))
   })
 
+  it('places zero in the middle and delete on the right', () => {
+    const wrapper = mount(AppLockScreen)
+    const keys = wrapper.findAll('.pin-keypad button')
+    expect(keys.at(-2)?.text()).toBe('0')
+    expect(keys.at(-1)?.text()).toBe('删除')
+  })
+
   it('emits an ordered unique gesture with at least four points', async () => {
     const wrapper = mount(PatternLock)
     for (const point of [1, 2, 5, 8]) await wrapper.get(`[aria-label="手势点${point}"]`).trigger('click')
     await wrapper.get('[aria-label="确认手势"]').trigger('click')
+    expect(wrapper.emitted('complete')?.[0]).toEqual([[1, 2, 5, 8]])
+  })
+
+  it('draws and completes a gesture by sliding across points', async () => {
+    const wrapper = mount(PatternLock)
+    await wrapper.get('[aria-label="手势点1"]').trigger('pointerdown', { clientX: 10, clientY: 10 })
+    for (const point of [2, 5, 8]) await wrapper.get(`[aria-label="手势点${point}"]`).trigger('pointerenter')
+    expect(wrapper.findAll('.pattern-grid line').length).toBeGreaterThanOrEqual(3)
+    await wrapper.get('.pattern-grid').trigger('pointerup')
     expect(wrapper.emitted('complete')?.[0]).toEqual([[1, 2, 5, 8]])
   })
 })

@@ -4,7 +4,7 @@ import EmojiPickerField from '../../src/shared/components/EmojiPickerField.vue'
 
 describe('EmojiPickerField', () => {
   it('opens the curated icon library and emits the selected icon', async () => {
-    const wrapper = mount(EmojiPickerField, { props: { modelValue: '📒', label: '账本图标' } })
+    const wrapper = mount(EmojiPickerField, { props: { modelValue: '📒', label: '账本图标' }, global: { stubs: { teleport: true } } })
     await wrapper.get('button[aria-label="选择账本图标"]') .trigger('click')
     expect(wrapper.text()).toContain('常用记账图标')
     await wrapper.get('button[aria-label="选择图标 💰"]').trigger('click')
@@ -14,12 +14,19 @@ describe('EmojiPickerField', () => {
   })
 
   it('locks the page behind the icon sheet and restores it when cancelled', async () => {
-    const wrapper = mount(EmojiPickerField, { props: { modelValue: '📒', label: '账本图标' } })
+    const wrapper = mount(EmojiPickerField, { props: { modelValue: '📒', label: '账本图标' }, global: { stubs: { teleport: true } } })
     await wrapper.get('button[aria-label="选择账本图标"]').trigger('click')
     expect(document.body.style.position).toBe('fixed')
     expect(document.body.style.overflow).toBe('hidden')
     await wrapper.get('.cancel-picker').trigger('click')
     expect(document.body.style.position).toBe('')
     expect(document.body.style.overflow).toBe('')
+  })
+
+  it('closes when the backdrop itself is clicked', async () => {
+    const wrapper = mount(EmojiPickerField, { props: { modelValue: '📒', label: '账本图标' }, global: { stubs: { teleport: true } } })
+    await wrapper.get('button[aria-label="选择账本图标"]').trigger('click')
+    await wrapper.get('.emoji-overlay').trigger('click')
+    expect(wrapper.find('.emoji-overlay').exists()).toBe(false)
   })
 })

@@ -59,6 +59,7 @@ export async function updateLedger(id: string, name: string, icon: string, cycle
 export async function setLedgerCycleStartDate(id: string, month: string, date?: string) {
   const ledger = ledgerItems.value.find((item) => item.id === id)
   if (!ledger) throw new Error('账本不存在')
+  if (date && ledger.cycleEndDates?.[month] && date > ledger.cycleEndDates[month]) throw new Error('起始日不能晚于终止日')
   const updated = { ...ledger, cycleStartDates: normalizeCycleStartDates({ ...ledger.cycleStartDates, [month]: date }) }
   await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
 }

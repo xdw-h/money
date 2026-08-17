@@ -8,7 +8,7 @@ const type = getAppLockType()
 const pin = ref('')
 const error = ref('')
 const busy = ref(false)
-const keys = ['1','2','3','4','5','6','7','8','9','删除','0']
+const keys = ['1','2','3','4','5','6','7','8','9','0','删除']
 
 const submit = async (credential: string | number[]) => {
   busy.value = true
