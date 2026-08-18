@@ -10,6 +10,20 @@ export const activeLedgerId = ref(localStorage.getItem('money-active-ledger') ||
 export const activeLedger = computed(() => ledgerItems.value.find((item) => item.id === activeLedgerId.value) ?? ledgerItems.value[0])
 let loaded = false
 
+function createStoredLedger(ledger: LedgerEntity): LedgerEntity {
+  const stored: LedgerEntity = {
+    id: ledger.id,
+    name: ledger.name,
+    icon: ledger.icon,
+    cycleAnchorDate: ledger.cycleAnchorDate,
+    createdAt: ledger.createdAt,
+  }
+  if (ledger.cycleStartDates) stored.cycleStartDates = { ...ledger.cycleStartDates }
+  if (ledger.cycleEndDates) stored.cycleEndDates = { ...ledger.cycleEndDates }
+  if (ledger.cycleStartDay !== undefined) stored.cycleStartDay = ledger.cycleStartDay
+  return stored
+}
+
 export async function loadLedgers() {
   if (!loaded) {
     if (typeof indexedDB === 'undefined') {
@@ -52,7 +66,7 @@ export async function updateLedger(id: string, name: string, icon: string, cycle
   const ledger = ledgerItems.value.find((item) => item.id === id)
   if (!ledger) throw new Error('账本不存在')
   const { cycleStartDay: _legacyStartDay, ...current } = ledger
-  const updated = { ...current, name: normalized, icon, cycleAnchorDate: normalizeCycleAnchorDate(cycleAnchorDate ?? ledger.cycleAnchorDate, _legacyStartDay) }
+  const updated = createStoredLedger({ ...current, name: normalized, icon, cycleAnchorDate: normalizeCycleAnchorDate(cycleAnchorDate ?? ledger.cycleAnchorDate, _legacyStartDay) })
   await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
 }
 
@@ -60,7 +74,7 @@ export async function setLedgerCycleStartDate(id: string, month: string, date?: 
   const ledger = ledgerItems.value.find((item) => item.id === id)
   if (!ledger) throw new Error('账本不存在')
   if (date && ledger.cycleEndDates?.[month] && date > ledger.cycleEndDates[month]) throw new Error('起始日不能晚于终止日')
-  const updated = { ...ledger, cycleStartDates: normalizeCycleStartDates({ ...ledger.cycleStartDates, [month]: date }) }
+  const updated = createStoredLedger({ ...ledger, cycleStartDates: normalizeCycleStartDates({ ...ledger.cycleStartDates, [month]: date }) })
   await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
 }
 
@@ -68,7 +82,7 @@ export async function clearLedgerCycleStartDate(id: string, month: string) {
   const ledger = ledgerItems.value.find((item) => item.id === id)
   if (!ledger) throw new Error('账本不存在')
   const cycleStartDates = { ...ledger.cycleStartDates }; delete cycleStartDates[month]
-  const updated = { ...ledger, cycleStartDates }
+  const updated = createStoredLedger({ ...ledger, cycleStartDates })
   await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
 }
 
@@ -77,7 +91,7 @@ export async function setLedgerCycleEndDate(id: string, month: string, date?: st
   if (!ledger) throw new Error('账本不存在')
   const start = ledger.cycleStartDates?.[month] || `${month}-01`
   if (date && date < start) throw new Error('终止日不能早于起始日')
-  const updated = { ...ledger, cycleEndDates: normalizeCycleEndDates({ ...ledger.cycleEndDates, [month]: date }) }
+  const updated = createStoredLedger({ ...ledger, cycleEndDates: normalizeCycleEndDates({ ...ledger.cycleEndDates, [month]: date }) })
   await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
 }
 
@@ -85,7 +99,7 @@ export async function clearLedgerCycleEndDate(id: string, month: string) {
   const ledger = ledgerItems.value.find((item) => item.id === id)
   if (!ledger) throw new Error('账本不存在')
   const cycleEndDates = { ...ledger.cycleEndDates }; delete cycleEndDates[month]
-  const updated = { ...ledger, cycleEndDates }
+  const updated = createStoredLedger({ ...ledger, cycleEndDates })
   await db.ledgers.put(updated); ledgerItems.value = ledgerItems.value.map((item) => item.id === id ? updated : item)
 }
 
