@@ -23,7 +23,7 @@ function moveYear(offset: number) { year.value += offset }
 
 <style scoped>
 .picker-overlay{position:fixed;z-index:185;inset:0;display:flex;align-items:flex-end;background:rgba(40,34,31,.52);backdrop-filter:blur(3px)}
-.month-picker-sheet{width:min(calc(100% - 16px),430px);margin:0 auto;padding:17px 16px calc(18px + var(--safe-bottom));display:grid;gap:14px;border-radius:26px 26px 0 0;background:var(--surface);box-shadow:0 -18px 50px rgba(35,27,23,.25)}
+.month-picker-sheet{box-sizing:border-box;width:min(calc(100% - 16px),430px);margin:0 auto;padding:17px 16px calc(18px + var(--safe-bottom));display:grid;gap:14px;border-radius:26px 26px 0 0;background:var(--surface);box-shadow:0 -18px 50px rgba(35,27,23,.25)}
 header,.year-nav{display:flex;align-items:center;justify-content:space-between}header>div{display:grid;gap:2px}header strong{font-size:17px}header small{color:var(--muted);font-size:10px}
 header button,.year-nav button{border:0;background:var(--surface-soft);color:var(--primary)}header button{width:36px;height:36px;border-radius:50%;font-size:22px}.year-nav button{width:42px;height:40px;border-radius:12px;font-size:26px}.year-nav b{font-size:15px}
 .months{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.months button{min-height:50px;border:1px solid var(--border);border-radius:14px;background:var(--surface-soft);color:var(--ink);font-size:13px}.months button.selected{border-color:var(--primary);background:var(--primary);color:#fff;font-weight:700;box-shadow:0 6px 16px color-mix(in srgb,var(--primary) 28%,transparent)}

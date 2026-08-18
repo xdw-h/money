@@ -94,8 +94,9 @@ describe('SettingsPage storage protection', () => {
     const wrapper = mount(SettingsPage)
     await flushPromises()
     await wrapper.get('.ledger-actions button').trigger('click')
-    const input = wrapper.get('input[aria-label="日常账本2026-08起始日期"]')
-    await input.trigger('click')
+    expect(wrapper.find('input[type="date"]').exists()).toBe(false)
+    expect(wrapper.find('input[type="month"]').exists()).toBe(false)
+    await wrapper.get('button[aria-label="日常账本2026-08起始日期"]').trigger('click')
     const day = wrapper.findAll('.days button').find((button) => button.text() === '20')
     expect(day).toBeTruthy()
     await day!.trigger('click')
@@ -104,5 +105,19 @@ describe('SettingsPage storage protection', () => {
 
     expect(ledgerMocks.setCycle).toHaveBeenCalledWith('ledger-1', '2026-08', '2026-08-20')
     expect(wrapper.text()).toContain('2026年8月20日')
+  })
+
+  it('selects a billing month with the in-app month picker', async () => {
+    const { ledgerItems } = await import('../../src/features/ledgers/ledgerStore')
+    ledgerItems.value = [{ id: 'ledger-1', name: '日常账本', icon: '📒', cycleAnchorDate: '2026-08-01', createdAt: '2026-08-01T00:00:00.000Z' }]
+    const wrapper = mount(SettingsPage)
+    await flushPromises()
+    await wrapper.get('.ledger-actions button').trigger('click')
+    await wrapper.get('button[aria-label="日常账本选择账期月份"]').trigger('click')
+    await wrapper.get('.month-picker-sheet [aria-label="下一年"]').trigger('click')
+    await wrapper.get('.month-picker-sheet [data-month="03"]').trigger('click')
+    await wrapper.get('.month-picker-sheet [data-action="confirm"]').trigger('click')
+
+    expect(wrapper.text()).toContain('2027年3月')
   })
 })

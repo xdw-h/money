@@ -1,13 +1,15 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import RecordEditor from '../../src/features/records/RecordEditor.vue'
+import DateTimePickerSheet from '../../src/shared/components/DateTimePickerSheet.vue'
 import type { RecordDraft } from '../../src/features/records/types'
 
 describe('RecordEditor', () => {
   it('enters cents with the keypad and emits a complete draft', async () => {
     const wrapper = mount(RecordEditor, { global: { stubs: { ImageUploader: true } } })
     expect(wrapper.get('.entry-tools').find('.note-trigger').exists()).toBe(true)
-    expect(wrapper.get('.entry-tools').find('input[type="datetime-local"]').exists()).toBe(true)
+    expect(wrapper.get('.entry-tools').find('[aria-label="选择记账时间"]').exists()).toBe(true)
+    expect(wrapper.find('input[type="datetime-local"]').exists()).toBe(false)
     expect(wrapper.get('.entry-tools').find('image-uploader-stub').exists()).toBe(true)
     await wrapper.get('.note-trigger').trigger('click')
     expect(wrapper.get('textarea[aria-label="备注"]')).toBeTruthy()
@@ -56,7 +58,9 @@ describe('RecordEditor', () => {
 
   it('saves a record with a historical local date', async () => {
     const wrapper = mount(RecordEditor, { global: { stubs: { ImageUploader: true } } })
-    await wrapper.get('input[type="datetime-local"]').setValue('2024-03-15T08:30')
+    await wrapper.get('[aria-label="选择记账时间"]').trigger('click')
+    wrapper.getComponent(DateTimePickerSheet).vm.$emit('select', '2024-03-15T08:30')
+    await wrapper.vm.$nextTick()
     await wrapper.get('[data-key="1"]').trigger('click')
     await wrapper.get('form').trigger('submit')
 
