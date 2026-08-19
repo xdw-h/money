@@ -9,7 +9,7 @@ describe('release notes', () => {
   it('matches the current application version', () => {
     expect(notes[0].version).toBe(packageJson.version)
     expect(notes[0].date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-    expect(notes[0].title).toBe('紧凑记账时间选择器')
+    expect(notes[0].title).toBe('时间滚轮选择优化')
   })
 
   it('automatically shows the latest announcement only once', () => {

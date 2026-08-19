@@ -8,10 +8,24 @@ describe('DateTimePickerSheet', () => {
     await wrapper.get('[data-day="20"]').trigger('click')
     await wrapper.get('[data-action="toggle-time"]').trigger('click')
     await wrapper.get('[data-hour="14"]').trigger('click')
+    expect(wrapper.get('[data-action="toggle-time"]').text()).toContain('14:07')
     await wrapper.get('[data-minute="43"]').trigger('click')
+    expect(wrapper.find('[aria-label="选择时间"]').exists()).toBe(false)
+    expect(wrapper.get('[data-action="toggle-time"]').text()).toContain('已选择 14:43')
     await wrapper.get('[data-action="confirm"]').trigger('click')
 
     expect(wrapper.emitted('select')?.[0]).toEqual(['2026-08-20T14:43'])
+  })
+
+  it('updates the displayed time while the fixed wheels scroll', async () => {
+    const wrapper = mount(DateTimePickerSheet, { props: { modelValue: '2026-08-18T09:07' } })
+    await wrapper.get('[data-action="toggle-time"]').trigger('click')
+    const hourList = wrapper.get('[aria-label="选择小时"]')
+    Object.defineProperty(hourList.element, 'scrollTop', { configurable: true, value: 14 * 36 })
+    await hourList.trigger('scroll')
+
+    expect(wrapper.get('[data-action="toggle-time"]').text()).toContain('14:07')
+    expect(wrapper.find('[data-selection-band]').exists()).toBe(true)
   })
 
   it('keeps the time wheels hidden until the time row is opened', async () => {
