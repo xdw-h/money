@@ -3,6 +3,36 @@ import { describe, expect, it } from 'vitest'
 import DateTimePickerSheet from '../../src/shared/components/DateTimePickerSheet.vue'
 
 describe('DateTimePickerSheet', () => {
+  it('keeps a fixed six-row calendar grid across months', async () => {
+    const wrapper = mount(DateTimePickerSheet, { props: { modelValue: '2026-08-18T09:07' } })
+
+    expect(wrapper.findAll('[data-calendar-cell]')).toHaveLength(42)
+    await wrapper.get('[aria-label="下个月"]').trigger('click')
+    expect(wrapper.findAll('[data-calendar-cell]')).toHaveLength(42)
+  })
+
+  it('opens fast year and month wheels without changing the selected date', async () => {
+    const wrapper = mount(DateTimePickerSheet, { props: { modelValue: '2026-08-18T09:07' } })
+
+    await wrapper.get('[data-action="toggle-month-picker"]').trigger('click')
+    expect(wrapper.find('[aria-label="选择年份和月份"]').exists()).toBe(true)
+    await wrapper.get('[data-year="2028"]').trigger('click')
+    await wrapper.get('[data-month="3"]').trigger('click')
+
+    expect(wrapper.get('[data-action="toggle-month-picker"]').text()).toContain('2028年3月')
+    expect(wrapper.find('[aria-label="选择年份和月份"]').exists()).toBe(false)
+    await wrapper.get('[data-action="confirm"]').trigger('click')
+    expect(wrapper.emitted('select')?.[0]).toEqual(['2026-08-18T09:07'])
+  })
+
+  it('moves across year boundaries with month navigation', async () => {
+    const wrapper = mount(DateTimePickerSheet, { props: { modelValue: '2026-01-18T09:07' } })
+
+    await wrapper.get('[aria-label="上个月"]').trigger('click')
+
+    expect(wrapper.get('[data-action="toggle-month-picker"]').text()).toContain('2025年12月')
+  })
+
   it('selects a date, hour, and individual minute', async () => {
     const wrapper = mount(DateTimePickerSheet, { props: { modelValue: '2026-08-18T09:07', title: '选择记账时间' } })
     await wrapper.get('[data-day="20"]').trigger('click')
