@@ -5,6 +5,7 @@ import { formatDateTime } from '../../shared/format/date'
 import { formatMoney } from '../../shared/format/money'
 import type { ImageEntity, RecordEntity } from './types'
 import ImageGallery from '../images/ImageGallery.vue'
+import IconDisplay from '../../shared/components/IconDisplay.vue'
 
 const props = defineProps<{ records: RecordEntity[]; images?: ImageEntity[]; grouped?: boolean }>()
 const emit = defineEmits<{ delete: [id: string]; edit: [id: string] }>()
@@ -47,7 +48,7 @@ onBeforeUnmount(() => urls.forEach(URL.revokeObjectURL))
     <template v-for="group in groups" :key="group.date">
       <header v-if="grouped" class="day-heading"><strong>{{ dayLabel(group.date) }}</strong><span><template v-if="group.expense">支出 {{ formatMoney(group.expense) }}</template><template v-if="group.expense && group.income"> · </template><template v-if="group.income">收入 {{ formatMoney(group.income) }}</template></span></header>
     <article v-for="record in group.records" :key="record.id" @click="openImages(record)">
-      <span class="category-icon">{{ names.get(record.categoryId)?.icon ?? '✦' }}</span>
+      <span class="category-icon"><IconDisplay :icon="names.get(record.subcategoryId ?? '')?.icon ?? names.get(record.categoryId)?.icon ?? '✦'" /></span>
       <div><strong>{{ names.get(record.categoryId)?.name ?? '其他' }}<template v-if="record.subcategoryId"> · {{ names.get(record.subcategoryId)?.name ?? '子类' }}</template></strong><small><template v-if="!grouped">{{ formatDateTime(record.occurredAt) }} · </template>{{ record.note || '无备注' }}</small></div>
       <b :class="record.type">{{ formatMoney(record.amount) }}</b>
       <span v-if="record.imageIds.length" class="image-count">{{ record.imageIds.length }} 图</span>

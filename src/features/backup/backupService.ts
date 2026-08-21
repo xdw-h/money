@@ -3,6 +3,9 @@ import type { BookkeepingDatabase } from '../../shared/db/database'
 import { imageExtension } from '../images/imageService'
 import type { BackupData, BackupManifest } from './types'
 import { normalizeCycleAnchorDate, normalizeCycleEndDates, normalizeCycleStartDates } from '../ledgers/cycleAnchorDate'
+import { isSafeIconBody, parseIconKey } from '../icons/iconService'
+import type { IconAsset } from '../icons/types'
+import { isBundledIconKey } from '../icons/bundledIconCatalog'
 
 function blobBytes(blob: Blob): Promise<Uint8Array> {
   if (typeof (blob as Blob & { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer === 'function') {
@@ -21,7 +24,9 @@ export async function exportBackup(database: BookkeepingDatabase): Promise<Blob>
     database.records.toArray(), database.categories.toArray(), database.images.toArray(), database.ledgers.toArray(),
   ])
   const zip = new JSZip()
-  const manifest: BackupManifest = { version: 1, createdAt: new Date().toISOString(), records: records.length, images: images.length }
+  const referencedIconKeys = new Set([...categories.map(({ icon }) => icon), ...ledgers.map(({ icon }) => icon)].filter((icon) => parseIconKey(icon) && !isBundledIconKey(icon)))
+  const iconAssets = (await database.iconAssets.bulkGet([...referencedIconKeys])).filter((asset): asset is IconAsset => Boolean(asset))
+  const manifest: BackupManifest = { version: 2, createdAt: new Date().toISOString(), records: records.length, images: images.length }
   const imageMetadata: BackupData['images'] = []
   for (const image of images) {
     const file = `images/${image.id}.${imageExtension(image.mimeType)}`
@@ -33,12 +38,13 @@ export async function exportBackup(database: BookkeepingDatabase): Promise<Blob>
   }
   zip.file('manifest.json', JSON.stringify(manifest, null, 2))
   zip.file('records.json', JSON.stringify({ records, categories, ledgers, images: imageMetadata } satisfies BackupData, null, 2))
+  zip.file('icons.json', JSON.stringify(iconAssets, null, 2))
   const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } })
   return new Blob([bytes as BlobPart], { type: 'application/zip' })
 }
 
 function validateData(manifest: BackupManifest, data: BackupData) {
-  if (manifest.version !== 1) throw new Error('备份版本不兼容')
+  if (manifest.version !== 1 && manifest.version !== 2) throw new Error('备份版本不兼容')
   if (!Array.isArray(data.records) || !Array.isArray(data.images) || !Array.isArray(data.categories)) throw new Error('备份数据结构错误')
   if (manifest.records !== data.records.length || manifest.images !== data.images.length) throw new Error('备份清单与内容不一致')
   const imageIds = new Set(data.images.map(({ id }) => id))
@@ -50,22 +56,27 @@ export async function importBackup(file: Blob, database: BookkeepingDatabase) {
   const manifestEntry = zip.file('manifest.json'); const dataEntry = zip.file('records.json')
   if (!manifestEntry || !dataEntry) throw new Error('不是有效的记账备份文件')
   const manifest = JSON.parse(await manifestEntry.async('string')) as BackupManifest
-  if (manifest.version !== 1) throw new Error('备份版本不兼容')
+  if (manifest.version !== 1 && manifest.version !== 2) throw new Error('备份版本不兼容')
   const data = JSON.parse(await dataEntry.async('string')) as BackupData
   validateData(manifest, data)
+  const iconEntry = zip.file('icons.json')
+  if (manifest.version === 2 && !iconEntry) throw new Error('备份缺少图标数据')
+  const restoredIcons = iconEntry ? JSON.parse(await iconEntry.async('string')) as IconAsset[] : []
+  if (!Array.isArray(restoredIcons) || restoredIcons.some((asset) => !parseIconKey(asset.key) || !isSafeIconBody(asset.body))) throw new Error('备份图标数据不安全')
   const preparedImages = await Promise.all(data.images.map(async (image) => {
     const entry = zip.file(image.file); if (!entry) throw new Error(`备份缺少图片：${image.name}`)
     const blob = await entry.async('blob')
     return { ...image, blob, thumbnailBlob: blob }
   }))
   let imported = 0; let skipped = 0; let imageCount = 0
-  await database.transaction('rw', database.records, database.images, database.categories, database.ledgers, async () => {
+  await database.transaction('rw', database.records, database.images, database.categories, database.ledgers, database.iconAssets, async () => {
     const restoredLedgers = data.ledgers?.length ? data.ledgers : [{ id: 'default-ledger', name: '日常账本', icon: '📒', cycleAnchorDate: normalizeCycleAnchorDate(undefined), createdAt: new Date().toISOString() }]
     for (const ledger of restoredLedgers) {
       const { cycleStartDay, ...restored } = ledger
       await database.ledgers.put({ ...restored, cycleAnchorDate: normalizeCycleAnchorDate(ledger.cycleAnchorDate, cycleStartDay), cycleStartDates: normalizeCycleStartDates(ledger.cycleStartDates), cycleEndDates: normalizeCycleEndDates(ledger.cycleEndDates) })
     }
     for (const category of data.categories) await database.categories.put(category)
+    if (restoredIcons.length) await database.iconAssets.bulkPut(restoredIcons)
     for (const record of data.records) {
       if (await database.records.get(record.id)) { skipped++; continue }
       const recordImages = preparedImages.filter((image) => image.recordId === record.id)

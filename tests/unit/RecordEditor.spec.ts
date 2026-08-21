@@ -5,6 +5,13 @@ import DateTimePickerSheet from '../../src/shared/components/DateTimePickerSheet
 import type { RecordDraft } from '../../src/features/records/types'
 
 describe('RecordEditor', () => {
+  it('selects the first category by default and after switching type', async () => {
+    const wrapper = mount(RecordEditor, { global: { stubs: { ImageUploader: true } } })
+    expect(wrapper.get('[data-category="food"]').classes()).toContain('selected')
+    await wrapper.get('[data-type="income"]').trigger('click')
+    expect(wrapper.get('[data-category="home"]').classes()).toContain('selected')
+  })
+
   it('enters cents with the keypad and emits a complete draft', async () => {
     const wrapper = mount(RecordEditor, { global: { stubs: { ImageUploader: true } } })
     expect(wrapper.get('.entry-tools').find('.note-trigger').exists()).toBe(true)

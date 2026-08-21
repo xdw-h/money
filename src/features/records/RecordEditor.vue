@@ -9,6 +9,7 @@ import { activeLedger, activeLedgerId, loadLedgers } from '../ledgers/ledgerStor
 import EmojiPickerField from '../../shared/components/EmojiPickerField.vue'
 import { useBodyScrollLock } from '../../shared/ui/useBodyScrollLock'
 import DateTimePickerSheet from '../../shared/components/DateTimePickerSheet.vue'
+import IconDisplay from '../../shared/components/IconDisplay.vue'
 
 const props = defineProps<{ busy?: boolean; error?: string; initial?: RecordDraft; initialImages?: ImageEntity[] }>()
 const emit = defineEmits<{ save: [draft: RecordDraft & { files: File[] }]; cancel: [] }>()
@@ -16,7 +17,7 @@ const type = ref<RecordType>('expense')
 const amountText = ref('')
 const pendingOperator = ref<'+' | '-'>()
 const accumulatedAmount = ref(0)
-const categoryId = ref('health')
+const categoryId = ref(categoryItems.value.find((item) => item.type === 'expense' && !item.parentId)?.id ?? '')
 const subcategoryId = ref('')
 const note = ref('')
 const noteSheetOpen = ref(false)
@@ -159,7 +160,7 @@ function submit() {
 
 <template>
   <form class="record-editor" @submit.prevent="submit">
-    <header class="editor-header"><button type="button" aria-label="取消" @click="emit('cancel')">‹</button><strong>{{ initial ? '编辑账目' : '快速记账' }}<small>{{ activeLedger?.icon }} {{ activeLedger?.name }}</small></strong></header>
+    <header class="editor-header"><button type="button" aria-label="取消" @click="emit('cancel')">‹</button><strong>{{ initial ? '编辑账目' : '快速记账' }}<small><IconDisplay :icon="activeLedger?.icon ?? '📒'" /> {{ activeLedger?.name }}</small></strong></header>
     <div class="type-switch">
       <button type="button" data-type="expense" :aria-pressed="type === 'expense'" @click="chooseType('expense')">支出</button>
       <button type="button" data-type="income" :aria-pressed="type === 'income'" @click="chooseType('income')">收入</button>
@@ -167,7 +168,7 @@ function submit() {
     <section class="category-panel"><div class="category-title"><strong>选择分类</strong><small>每行显示 5 个</small><button type="button" @click="managingParentId = undefined; managingCategories = true; addingCategory = false; categoryError = ''">管理</button></div>
       <div class="category-grid" :class="{ 'income-grid': type === 'income' }">
       <button v-for="category in visibleCategories" :key="category.id" type="button" :data-category="category.id" :class="{ selected: categoryId === category.id }" @click="chooseCategory(category.id)">
-        <span>{{ category.icon }}</span><small>{{ category.name }}</small>
+        <span><IconDisplay :icon="category.icon" /></span><small>{{ category.name }}</small>
       </button>
       </div>
     </section>
@@ -175,7 +176,7 @@ function submit() {
     <div v-if="subcategorySheetOpen" class="sheet-overlay" @click.self="subcategorySheetOpen = false">
       <section class="subcategory-sheet" role="dialog" aria-modal="true" aria-label="选择子分类">
         <header><button type="button" aria-label="关闭子分类" @click="subcategorySheetOpen = false">×</button><strong>{{ categoryItems.find(item => item.id === categoryId)?.name }}</strong><span><button type="button" @click="managingParentId = categoryId; managingCategories = true; addingCategory = false; categoryError = ''; subcategorySheetOpen = false">管理</button><button class="add" type="button" @click="openCreateSubcategory">添加</button></span></header>
-        <div class="subcategory-rows"><button type="button" :class="{ selected: !subcategoryId }" @click="chooseSubcategory('')"><i>{{ categoryItems.find(item => item.id === categoryId)?.icon }}</i><span>{{ categoryItems.find(item => item.id === categoryId)?.name }}（不选子类）</span><b>✓</b></button><button v-for="category in visibleSubcategories" :key="category.id" type="button" :class="{ selected: subcategoryId === category.id }" @click="chooseSubcategory(category.id)"><i>{{ category.icon }}</i><span>{{ category.name }}</span><b>✓</b></button><p v-if="!visibleSubcategories.length">还没有子分类，点击右上角“添加”创建</p></div>
+        <div class="subcategory-rows"><button type="button" :class="{ selected: !subcategoryId }" @click="chooseSubcategory('')"><i><IconDisplay :icon="categoryItems.find(item => item.id === categoryId)?.icon ?? '✦'" /></i><span>{{ categoryItems.find(item => item.id === categoryId)?.name }}（不选子类）</span><b>✓</b></button><button v-for="category in visibleSubcategories" :key="category.id" type="button" :class="{ selected: subcategoryId === category.id }" @click="chooseSubcategory(category.id)"><i><IconDisplay :icon="category.icon" /></i><span>{{ category.name }}</span><b>✓</b></button><p v-if="!visibleSubcategories.length">还没有子分类，点击右上角“添加”创建</p></div>
       </section>
     </div>
     <section v-if="addingCategory" class="category-dialog" role="dialog" aria-label="新增分类">
@@ -187,7 +188,7 @@ function submit() {
     </section>
     <section v-if="managingCategories" class="category-dialog category-manager" role="dialog" aria-label="管理分类">
       <header><strong>管理{{ managingParentId ? '子分类' : type === 'expense' ? '支出分类' : '收入分类' }}</strong><button type="button" aria-label="关闭分类管理" @click="managingCategories = false">×</button></header>
-      <div class="category-manage-list"><div v-for="category in managedCategories" :key="category.id"><i>{{ category.icon }}</i><span>{{ category.name }}</span><button type="button" @click="editCategory(category.id)">修改</button><button class="remove" type="button" @click="removeCategory(category.id)">删除</button></div></div>
+      <div class="category-manage-list"><div v-for="category in managedCategories" :key="category.id"><i><IconDisplay :icon="category.icon" /></i><span>{{ category.name }}</span><button type="button" @click="editCategory(category.id)">修改</button><button class="remove" type="button" @click="removeCategory(category.id)">删除</button></div></div>
       <p v-if="categoryError">{{ categoryError }}</p>
       <button class="category-confirm" type="button" @click="managingParentId ? openCreateSubcategory() : openCreateCategory()">新增{{ managingParentId ? '子分类' : '分类' }}</button>
     </section>

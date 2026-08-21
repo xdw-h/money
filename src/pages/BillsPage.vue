@@ -12,6 +12,7 @@ import { activeLedger, activeLedgerId, loadLedgers } from '../features/ledgers/l
 import { billingCycleRange } from '../shared/format/date'
 import MonthPickerSheet from '../shared/components/MonthPickerSheet.vue'
 import { useBodyScrollLock } from '../shared/ui/useBodyScrollLock'
+import IconDisplay from '../shared/components/IconDisplay.vue'
 
 const records = ref<RecordEntity[]>([]); const images = ref<ImageEntity[]>([])
 const router = useRouter()
@@ -43,14 +44,14 @@ function selectMonth(value: string) { if (/^\d{4}-\d{2}$/.test(value)) monthValu
 </script>
 <template>
   <main class="page bills-page">
-    <header class="bills-header"><div><h1>{{ mode === 'month' ? '月账单' : '年账单' }}</h1><small>{{ activeLedger?.icon }} {{ activeLedger?.name }} · 独立统计</small></div></header>
+    <header class="bills-header"><div><h1>{{ mode === 'month' ? '月账单' : '年账单' }}</h1><small><IconDisplay :icon="activeLedger?.icon ?? '📒'" /> {{ activeLedger?.name }} · 独立统计</small></div></header>
     <div class="segmented"><button :class="{active:mode==='month'}" @click="mode='month'">月账单</button><button :class="{active:mode==='year'}" @click="mode='year'">年账单</button></div>
     <div class="period-input"><button v-if="mode === 'month'" type="button" aria-label="选择月份" @click="monthPickerOpen=true">{{ monthLabel }}</button><div v-else class="year-picker"><button type="button" aria-label="上一年" @click="changeYear(-1)">‹</button><strong>{{ yearValue }} 年</strong><button type="button" aria-label="下一年" @click="changeYear(1)">›</button></div><small v-if="mode === 'month'">本期：{{ cycleRange.start }} 至 {{ cycleRange.endInclusive }}</small></div>
     <div class="segmented type"><button :class="{active:type==='expense'}" @click="type='expense'">支出</button><button :class="{active:type==='income'}" @click="type='income'">收入</button></div>
     <section class="summary-card"><small>{{ mode === 'year' ? '本年结余' : '本期结余' }}</small><strong>{{ formatMoney(summary.balance) }}</strong><div><span class="income">收入 {{ formatMoney(summary.income) }}</span><span class="expense">支出 {{ formatMoney(summary.expense) }}</span></div><p v-if="mode === 'year'" class="cumulative">截至 {{ yearValue }} 年末累计结余 <b>{{ formatMoney(cumulativeSummary.balance) }}</b></p><p>共 {{ filtered.length }} 笔{{ type === 'expense' ? '支出' : '收入' }}记录</p></section>
     <div class="section-title"><h2>{{ type === 'expense' ? '支出' : '收入' }}趋势</h2><div class="chart-toggle"><button @click="chartType='bar'">柱状图</button><button @click="chartType='line'">折线图</button></div></div>
     <section class="chart-card"><TrendChart v-if="trend.values.some(Boolean)" :labels="trend.labels" :values="trend.values" :type="chartType" :color="type === 'income' ? '#679ce8' : '#e7685d'" /><div v-else class="chart-empty">本周期暂无数据</div></section>
-    <h2>分类占比</h2><section class="ranking-card"><div v-if="ranking.length" v-for="item in ranking" :key="item.categoryId"><span>{{ categoryMap.get(item.categoryId)?.icon }} {{ categoryMap.get(item.categoryId)?.name }}</span><b>{{ item.percent }}%</b><progress :value="item.percent" max="100" /><strong>{{ formatMoney(item.amount) }}</strong></div><p v-else>暂无分类数据</p></section>
+    <h2>分类占比</h2><section class="ranking-card"><div v-if="ranking.length" v-for="item in ranking" :key="item.categoryId"><span><IconDisplay :icon="categoryMap.get(item.categoryId)?.icon ?? '✦'" /> {{ categoryMap.get(item.categoryId)?.name }}</span><b>{{ item.percent }}%</b><progress :value="item.percent" max="100" /><strong>{{ formatMoney(item.amount) }}</strong></div><p v-else>暂无分类数据</p></section>
     <h2>账单明细</h2><RecentRecordList :records="filtered" :images="images" @edit="router.push(`/record/${$event}`)" @delete="remove" />
     <MonthPickerSheet v-if="monthPickerOpen" :model-value="monthValue" title="选择账单月份" @close="monthPickerOpen=false" @select="selectMonth" />
   </main>

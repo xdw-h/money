@@ -6,6 +6,7 @@ import { categoryItems, loadCategories } from '../features/records/categoryStore
 import ImageGallery from '../features/images/ImageGallery.vue'
 import type { ImageEntity, RecordEntity } from '../features/records/types'
 import { activeLedger, activeLedgerId, loadLedgers } from '../features/ledgers/ledgerStore'
+import IconDisplay from '../shared/components/IconDisplay.vue'
 
 const records = ref<RecordEntity[]>([])
 const images = ref<ImageEntity[]>([])
@@ -71,13 +72,13 @@ onBeforeUnmount(() => objectUrls.forEach(URL.revokeObjectURL))
 
 <template>
   <main class="page timeline-page">
-    <header><div><h1>记账时间轴</h1><small>{{ activeLedger?.icon }} {{ activeLedger?.name }} · 每一笔都是生活留下的刻度</small></div></header>
+    <header><div><h1>记账时间轴</h1><small><IconDisplay :icon="activeLedger?.icon ?? '📒'" /> {{ activeLedger?.name }} · 每一笔都是生活留下的刻度</small></div></header>
     <section v-if="entries.length" class="timeline" aria-label="记账时间轴">
       <article v-for="entry in entries" :key="entry.record.id">
         <div class="date"><strong>{{ entry.date.day }}</strong><small>{{ entry.date.year }} · {{ entry.date.weekday }}</small><b>{{ entry.date.time }}</b></div>
         <i class="dot" :class="entry.record.type" />
         <div class="entry-card">
-          <div class="entry-title"><span>{{ entry.category?.icon ?? '✦' }}</span><div><strong>{{ entry.category?.name ?? '其他' }}<template v-if="entry.subcategory"> · {{ entry.subcategory.name }}</template></strong><small>{{ entry.record.note || '无备注' }}</small></div><b :class="entry.record.type">{{ formatMoney(entry.record.amount) }}</b></div>
+          <div class="entry-title"><span><IconDisplay :icon="entry.subcategory?.icon ?? entry.category?.icon ?? '✦'" /></span><div><strong>{{ entry.category?.name ?? '其他' }}<template v-if="entry.subcategory"> · {{ entry.subcategory.name }}</template></strong><small>{{ entry.record.note || '无备注' }}</small></div><b :class="entry.record.type">{{ formatMoney(entry.record.amount) }}</b></div>
           <div v-if="entry.thumbnails.length" class="thumbnails">
             <button v-for="image in entry.thumbnails" :key="image.id" type="button" aria-label="查看记账凭证大图" @click="openImages(entry.record, image.id)"><img :src="image.url" alt="记账凭证缩略图" /></button>
           </div>
