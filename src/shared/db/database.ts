@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from 'dexie'
 import type { CategoryEntity, ImageEntity, LedgerEntity, RecordEntity } from '../../features/records/types'
 import type { IconAsset } from '../../features/icons/types'
 import { normalizeCycleAnchorDate } from '../../features/ledgers/cycleAnchorDate'
+import type { SavingsDeposit, SavingsPlan } from '../../features/savings/types'
 
 export class BookkeepingDatabase extends Dexie {
   records!: EntityTable<RecordEntity, 'id'>
@@ -9,6 +10,8 @@ export class BookkeepingDatabase extends Dexie {
   categories!: EntityTable<CategoryEntity, 'id'>
   ledgers!: EntityTable<LedgerEntity, 'id'>
   iconAssets!: EntityTable<IconAsset, 'key'>
+  savingsPlans!: EntityTable<SavingsPlan, 'id'>
+  savingsDeposits!: EntityTable<SavingsDeposit, 'id'>
 
   constructor(name = 'money-bookkeeping') {
     super(name)
@@ -57,6 +60,7 @@ export class BookkeepingDatabase extends Dexie {
       ledgers: 'id, createdAt',
       iconAssets: 'key, prefix, cachedAt',
     })
+    this.version(7).stores({ savingsPlans: 'id, createdAt', savingsDeposits: 'id, planId, occurredAt' })
   }
 }
 

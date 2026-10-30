@@ -6,6 +6,7 @@ import { normalizeCycleAnchorDate, normalizeCycleEndDates, normalizeCycleStartDa
 import { isSafeIconBody, parseIconKey } from '../icons/iconService'
 import type { IconAsset } from '../icons/types'
 import { isBundledIconKey } from '../icons/bundledIconCatalog'
+import { validateSavingsDeposit, validateSavingsPlan } from '../savings/savingsService'
 
 function blobBytes(blob: Blob): Promise<Uint8Array> {
   if (typeof (blob as Blob & { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer === 'function') {
@@ -20,8 +21,9 @@ function blobBytes(blob: Blob): Promise<Uint8Array> {
 }
 
 export async function exportBackup(database: BookkeepingDatabase): Promise<Blob> {
-  const [records, categories, images, ledgers] = await Promise.all([
+  const [records, categories, images, ledgers, savingsPlans, savingsDeposits] = await Promise.all([
     database.records.toArray(), database.categories.toArray(), database.images.toArray(), database.ledgers.toArray(),
+    database.savingsPlans.toArray(), database.savingsDeposits.toArray(),
   ])
   const zip = new JSZip()
   const referencedIconKeys = new Set([...categories.map(({ icon }) => icon), ...ledgers.map(({ icon }) => icon)].filter((icon) => parseIconKey(icon) && !isBundledIconKey(icon)))
@@ -37,7 +39,7 @@ export async function exportBackup(database: BookkeepingDatabase): Promise<Blob>
     })
   }
   zip.file('manifest.json', JSON.stringify(manifest, null, 2))
-  zip.file('records.json', JSON.stringify({ records, categories, ledgers, images: imageMetadata } satisfies BackupData, null, 2))
+  zip.file('records.json', JSON.stringify({ records, categories, ledgers, savingsPlans, savingsDeposits, images: imageMetadata } satisfies BackupData, null, 2))
   zip.file('icons.json', JSON.stringify(iconAssets, null, 2))
   const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } })
   return new Blob([bytes as BlobPart], { type: 'application/zip' })
@@ -49,6 +51,12 @@ function validateData(manifest: BackupManifest, data: BackupData) {
   if (manifest.records !== data.records.length || manifest.images !== data.images.length) throw new Error('备份清单与内容不一致')
   const imageIds = new Set(data.images.map(({ id }) => id))
   if (data.records.some((record) => record.imageIds.some((id) => !imageIds.has(id)))) throw new Error('备份缺少账目关联图片')
+  if (data.savingsPlans !== undefined && !Array.isArray(data.savingsPlans) || data.savingsDeposits !== undefined && !Array.isArray(data.savingsDeposits)) throw new Error('存钱计划备份结构错误')
+  const plans = data.savingsPlans ?? []; const deposits = data.savingsDeposits ?? []
+  plans.forEach(validateSavingsPlan); deposits.forEach(validateSavingsDeposit)
+  const planIds = new Set(plans.map(plan => plan.id))
+  if (planIds.size !== plans.length || new Set(deposits.map(item => item.id)).size !== deposits.length) throw new Error('存钱计划备份包含重复记录')
+  if (deposits.some(item => !planIds.has(item.planId))) throw new Error('备份缺少存入记录所属计划')
 }
 
 export async function importBackup(file: Blob, database: BookkeepingDatabase) {
@@ -69,7 +77,10 @@ export async function importBackup(file: Blob, database: BookkeepingDatabase) {
     return { ...image, blob, thumbnailBlob: blob }
   }))
   let imported = 0; let skipped = 0; let imageCount = 0
-  await database.transaction('rw', database.records, database.images, database.categories, database.ledgers, database.iconAssets, async () => {
+  let savingsPlanCount = 0; let savingsDepositCount = 0
+  await database.transaction('rw', [database.records, database.images, database.categories, database.ledgers, database.iconAssets, database.savingsPlans, database.savingsDeposits], async () => {
+    for (const plan of data.savingsPlans ?? []) if (!await database.savingsPlans.get(plan.id)) { await database.savingsPlans.add(plan); savingsPlanCount++ }
+    for (const deposit of data.savingsDeposits ?? []) if (!await database.savingsDeposits.get(deposit.id)) { await database.savingsDeposits.add(deposit); savingsDepositCount++ }
     const restoredLedgers = data.ledgers?.length ? data.ledgers : [{ id: 'default-ledger', name: '日常账本', icon: '📒', cycleAnchorDate: normalizeCycleAnchorDate(undefined), createdAt: new Date().toISOString() }]
     for (const ledger of restoredLedgers) {
       const { cycleStartDay, ...restored } = ledger
@@ -85,5 +96,5 @@ export async function importBackup(file: Blob, database: BookkeepingDatabase) {
       imported++; imageCount += recordImages.length
     }
   })
-  return { imported, skipped, images: imageCount }
+  return { imported, skipped, images: imageCount, ...(data.savingsPlans?.length || data.savingsDeposits?.length ? { savingsPlans: savingsPlanCount, savingsDeposits: savingsDepositCount } : {}) }
 }

@@ -118,13 +118,13 @@ async function downloadBackup() {
 async function restore(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return
   busy.value = true; error.value = ''
-  try { const result = await importBackup(file, db); message.value = `已恢复 ${result.imported} 笔、${result.images} 张图片，跳过 ${result.skipped} 笔` }
+  try { const result = await importBackup(file, db); message.value = `已恢复 ${result.imported} 笔账目、${result.images} 张图片，跳过 ${result.skipped} 笔账目；新增 ${result.savingsPlans ?? 0} 个存钱计划、${result.savingsDeposits ?? 0} 笔存入记录` }
   catch (reason) { error.value = reason instanceof Error ? reason.message : '导入失败，现有数据未改变' }
   finally { busy.value = false; (event.target as HTMLInputElement).value = '' }
 }
 async function clearAll() {
-  if (!window.confirm('确定清空全部账目和图片吗？此操作无法撤销。')) return
-  await db.transaction('rw', db.records, db.images, db.categories, async () => { await Promise.all([db.records.clear(), db.images.clear(), db.categories.clear()]) })
+  if (!window.confirm('确定清空全部账目、图片和存钱计划吗？此操作无法撤销。')) return
+  await db.transaction('rw', [db.records, db.images, db.categories, db.savingsPlans, db.savingsDeposits], async () => { await Promise.all([db.records.clear(), db.images.clear(), db.categories.clear(), db.savingsPlans.clear(), db.savingsDeposits.clear()]) })
   message.value = '本地数据已清空'
 }
 </script>

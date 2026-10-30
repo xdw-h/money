@@ -14,6 +14,26 @@ describe('backup service', () => {
   })
   afterEach(async () => { await source.delete(); await target.delete() })
 
+  it('round-trips savings plans and deposits without duplicating deposits', async () => {
+    await source.savingsPlans.add({ id:'plan', name:'旅行', targetAmount:10000, defaultAmount:1000, deadline:'2027-10-30', createdAt:new Date().toISOString() })
+    await source.savingsDeposits.add({ id:'deposit', planId:'plan', amount:500, occurredAt:new Date().toISOString(), note:'第一笔' })
+    const backup = await exportBackup(source)
+    expect(await importBackup(backup, target)).toMatchObject({ savingsPlans:1, savingsDeposits:1 })
+    await importBackup(backup, target)
+    expect(await target.savingsPlans.get('plan')).toMatchObject({ name:'旅行', deadline:'2027-10-30' })
+    expect(await target.savingsDeposits.count()).toBe(1)
+  })
+
+  it('rejects orphan savings deposits before changing existing data', async () => {
+    const bytes = await new JSZip()
+      .file('manifest.json', JSON.stringify({ version:2, records:0, images:0 }))
+      .file('icons.json', '[]')
+      .file('records.json', JSON.stringify({ records:[], images:[], categories:[], savingsPlans:[], savingsDeposits:[{id:'x', planId:'missing', amount:100, occurredAt:new Date().toISOString(), note:''}] }))
+      .generateAsync({type:'uint8array'})
+    await expect(importBackup(new NodeBlob([bytes]) as Blob, target)).rejects.toThrow('计划')
+    expect(await target.ledgers.count()).toBe(0)
+  })
+
   it('round-trips records and images through a versioned ZIP', async () => {
     const now = new Date().toISOString()
     await source.records.add({ id:'record-1', type:'expense', amount:24000, categoryId:'health', occurredAt:now, note:'牙科', imageIds:['image-1'], createdAt:now, updatedAt:now })
